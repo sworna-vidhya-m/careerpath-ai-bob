@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CareerPath AI — Talent Intelligence</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --bg:#f4f4f4;
+  --surface:#ffffff;
+  --surface-alt:#f9fafb;
+  --border:#e5e7eb;
+  --border-strong:#d1d5db;
+  --text-primary:#111827;
+  --text-secondary:#4b5563;
+  --text-muted:#6b7280;
+  --primary:#0f62fe;
+  --primary-hover:#0353e9;
+  --primary-soft:#edf4ff;
+  --success:#198038;
+  --warning:#f1c21b;
+  --danger:#da1e28;
+  --danger-hover:#b81921;
+  --radius:8px;
+  --radius-sm:6px;
+  --shadow:0 1px 2px rgba(0,0,0,0.04),0 1px 6px rgba(0,0,0,0.04);
+  --shadow-modal:0 20px 25px -5px rgba(0,0,0,0.12),0 8px 10px -6px rgba(0,0,0,0.08);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono","Cascadia Mono",monospace;
+  --header-h:56px;
+  --tab-h:44px;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text-primary);min-height:100vh;line-height:1.5}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+a{color:var(--primary)}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.app-header{
+  position:sticky;top:0;z-index:100;
+  height:var(--header-h);
+  background:#161616;
+  border-bottom:1px solid #393939;
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;
+}
+.app-header-left{display:flex;align-items:center;gap:16px}
+.app-logo{display:flex;align-items:center;gap:10px}
+.app-logo-icon{
+  width:28px;height:28px;border-radius:6px;
+  background:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:13px;letter-spacing:-0.5px;
+}
+.app-logo-name{color:#f4f4f4;font-size:16px;font-weight:600;letter-spacing:-0.2px}
+.app-logo-sep{width:1px;height:20px;background:#525252}
+.app-subtitle{color:#8d8d8d;font-size:13px}
+.app-header-right{display:flex;align-items:center;gap:8px}
+.env-badge{
+  background:#262626;color:#78a9ff;
+  border:1px solid #393939;
+  border-radius:20px;padding:3px 12px;
+  font-size:11px;font-weight:500;letter-spacing:0.3px;
+}
+
+/* ============================================================
+   TAB NAV
+   ============================================================ */
+.tab-nav{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;padding:0 24px;gap:0;
+  position:sticky;top:var(--header-h);z-index:99;
+}
+.tab-nav-btn{
+  background:none;border:none;
+  height:var(--tab-h);padding:0 18px;
+  font-size:14px;color:var(--text-muted);
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:color .15s,border-color .15s,background .15s;
+  white-space:nowrap;
+}
+.tab-nav-btn:hover{color:var(--text-primary);background:var(--surface-alt)}
+.tab-nav-btn.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.app-main{max-width:1280px;margin:0 auto;padding:24px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ============================================================
+   PAGE TOOLBAR
+   ============================================================ */
+.toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;gap:12px;flex-wrap:wrap;
+}
+.toolbar-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toolbar-right{display:flex;align-items:center;gap:8px}
+.toolbar-title{font-size:18px;font-weight:700;color:var(--text-primary);letter-spacing:-0.3px}
+.toolbar-count{font-size:13px;color:var(--text-muted);margin-left:4px}
+
+/* ============================================================
+   FILTERS
+   ============================================================ */
+.filter-select,.filter-input{
+  height:36px;padding:0 10px;
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);color:var(--text-primary);font-size:13px;
+  min-width:160px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.filter-select:focus,.filter-input:focus{
+  outline:none;border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(15,98,254,.15);
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:0 16px;height:36px;
+  font-size:14px;font-weight:500;border-radius:var(--radius-sm);
+  border:1px solid transparent;
+  transition:background .15s,border-color .15s,opacity .15s;
+  white-space:nowrap;
+}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-hover);border-color:var(--primary-hover)}
+.btn-secondary{background:var(--surface);color:var(--text-primary);border-color:var(--border-strong)}
+.btn-secondary:hover{background:var(--surface-alt)}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-danger:hover{background:var(--danger-hover);border-color:var(--danger-hover)}
+.btn-ghost{
+  background:transparent;color:var(--text-secondary);border-color:transparent;
+  padding:0 8px;height:30px;font-size:13px;
+}
+.btn-ghost:hover{background:var(--surface-alt);color:var(--text-primary)}
+.btn-ghost-danger{
+  background:transparent;color:var(--danger);border-color:transparent;
+  padding:0 8px;height:30px;font-size:13px;
+}
+.btn-ghost-danger:hover{background:#fff0f0}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-icon{font-size:16px;line-height:1}
+
+/* ============================================================
+   CARD
+   ============================================================ */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{
+  background:var(--surface-alt);
+  padding:10px 16px;
+  text-align:left;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.6px;
+  color:var(--text-secondary);
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+thead th.col-num{text-align:right}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface-alt)}
+tbody td{padding:12px 16px;vertical-align:middle;font-size:14px}
+tbody td.col-num{text-align:right;font-family:var(--font-mono);font-size:13px;color:var(--text-secondary)}
+tbody td.col-muted{color:var(--text-secondary);font-size:13px}
+tbody td.col-actions{text-align:right;width:90px;padding:6px 12px}
+
+/* ============================================================
+   STATUS PILLS
+   ============================================================ */
+.pill{
+  display:inline-flex;align-items:center;
+  padding:2px 10px;border-radius:20px;
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;
+}
+.pill-active{background:#e6f4ea;color:#1a6b36}
+.pill-bench{background:#fef3c7;color:#92400e}
+.pill-learning{background:var(--primary-soft);color:var(--primary)}
+.pill-completed{background:#ede9fe;color:#5b21b6}
+.pill-on-hold{background:#fff7ed;color:#c2410c}
+.pill-in-progress{background:#ecfdf5;color:#065f46}
+.pill-enrolled{background:#f0fdf4;color:#166534}
+.pill-dropped{background:#fef2f2;color:#991b1b}
+.pill-course{background:#eff6ff;color:#1d4ed8}
+.pill-certification{background:#fdf4ff;color:#7e22ce}
+.pill-book{background:#f0fdf4;color:#166534}
+.pill-workshop{background:#fff7ed;color:#c2410c}
+.pill-neutral{background:#f3f4f6;color:#374151}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+.pagination-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-top:1px solid var(--border);
+  background:var(--surface);gap:12px;flex-wrap:wrap;
+}
+.pagination-info{font-size:13px;color:var(--text-secondary)}
+.pagination-controls{display:flex;align-items:center;gap:8px}
+.pagination-page{font-size:13px;color:var(--text-secondary)}
+.btn-page{
+  background:var(--surface);color:var(--text-secondary);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:0 12px;height:32px;font-size:13px;
+  transition:background .15s;
+}
+.btn-page:hover:not(:disabled){background:var(--surface-alt);color:var(--text-primary)}
+.btn-page:disabled{opacity:.45;cursor:not-allowed}
+
+/* ============================================================
+   LOADING & EMPTY
+   ============================================================ */
+.tbl-loading{padding:48px 24px;text-align:center;color:var(--text-muted);font-size:14px}
+.tbl-empty{padding:48px 24px;text-align:center}
+.tbl-empty-icon{font-size:32px;color:var(--border-strong);margin-bottom:12px}
+.tbl-empty h3{font-size:15px;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+.tbl-empty p{font-size:13px;color:var(--text-muted)}
+
+/* ============================================================
+   SECTION DIVIDER
+   ============================================================ */
+.section-heading{
+  font-size:13px;font-weight:600;text-transform:uppercase;
+  letter-spacing:0.6px;color:var(--text-secondary);
+  margin:28px 0 12px;display:flex;align-items:center;gap:8px;
+}
+.section-heading::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ============================================================
+   CAREER PATH CARDS
+   ============================================================ */
+.cp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.cp-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 20px;
+  box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:10px;
+  position:relative;
+}
+.cp-card:hover{border-color:var(--border-strong)}
+.cp-path{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.cp-arrow{color:var(--primary);font-size:18px}
+.cp-bu-badge{
+  font-size:11px;font-weight:500;
+  background:var(--primary-soft);color:var(--primary);
+  border-radius:4px;padding:2px 7px;
+}
+.cp-desc{font-size:13px;color:var(--text-secondary);line-height:1.6}
+.skill-chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  background:var(--surface-alt);color:var(--text-secondary);
+  border:1px solid var(--border);border-radius:4px;
+  padding:2px 8px;font-size:11px;font-weight:500;
+}
+.chip-em{
+  background:var(--primary-soft);color:var(--primary);
+  border-color:rgba(15,98,254,.2);
+}
+.cp-actions{position:absolute;top:14px;right:14px;display:flex;gap:4px}
+
+/* ============================================================
+   RESOURCE GRID
+   ============================================================ */
+.res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.res-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;
+  position:relative;
+}
+.res-card:hover{border-color:var(--border-strong)}
+.res-title{font-size:14px;font-weight:600;color:var(--text-primary);line-height:1.4}
+.res-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.res-dur{font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}
+.res-link{font-size:12px;color:var(--primary);text-decoration:none}
+.res-link:hover{text-decoration:underline}
+.res-actions{position:absolute;top:12px;right:12px;display:flex;gap:4px}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(17,24,39,.45);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  opacity:0;pointer-events:none;
+  transition:opacity .15s;
+}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{
+  background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--shadow-modal);
+  width:100%;max-width:560px;
+  display:flex;flex-direction:column;
+  max-height:calc(100vh - 48px);
+}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 24px;border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.modal-title{font-size:16px;font-weight:700;color:var(--text-primary)}
+.modal-close{
+  background:none;border:none;color:var(--text-muted);
+  font-size:20px;line-height:1;padding:4px;border-radius:4px;
+  cursor:pointer;
+}
+.modal-close:hover{background:var(--surface-alt);color:var(--text-primary)}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{
+  display:flex;align-items:center;justify-content:flex-end;
+  gap:8px;padding:16px 24px;border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+
+/* FORM */
+.form-grid{display:flex;flex-direction:column;gap:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-field{display:flex;flex-direction:column;gap:5px}
+.form-label{
+  font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:0.5px;color:var(--text-secondary);
+}
+.form-label .req{color:var(--danger);margin-left:2px}
+.form-control{
+  height:38px;padding:0 12px;
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);color:var(--text-primary);font-size:14px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.form-control:focus{
+  outline:none;border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(15,98,254,.15);
+}
+.form-control.error{border-color:var(--danger)}
+textarea.form-control{height:80px;padding:10px 12px;resize:vertical}
+.form-err{font-size:12px;color:var(--danger);margin-top:2px;display:none}
+.form-err.show{display:block}
+
+/* ============================================================
+   CONFIRM DIALOG
+   ============================================================ */
+.confirm-overlay{
+  position:fixed;inset:0;z-index:1100;
+  background:rgba(17,24,39,.5);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;opacity:0;pointer-events:none;transition:opacity .15s;
+}
+.confirm-overlay.open{opacity:1;pointer-events:auto}
+.confirm-box{
+  background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--shadow-modal);width:100%;max-width:400px;
+  padding:28px 28px 24px;
+}
+.confirm-icon{font-size:32px;margin-bottom:12px}
+.confirm-title{font-size:16px;font-weight:700;margin-bottom:8px}
+.confirm-msg{font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.6}
+.confirm-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* ============================================================
+   TOASTS
+   ============================================================ */
+#toast-root{
+  position:fixed;top:16px;right:16px;z-index:2000;
+  display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast{
+  background:var(--surface);border-radius:var(--radius-sm);
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+  border-left:4px solid var(--success);
+  padding:12px 16px;min-width:260px;max-width:360px;
+  font-size:14px;color:var(--text-primary);
+  display:flex;align-items:center;gap:10px;
+  animation:toastIn .2s ease;pointer-events:auto;
+}
+.toast.error{border-left-color:var(--danger)}
+.toast-icon{font-size:16px;flex-shrink:0}
+.toast-msg{flex:1;line-height:1.4}
+@keyframes toastIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ============================================================
+   SKILL MATRIX PLACEHOLDER
+   ============================================================ */
+.placeholder{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:80px 40px;text-align:center;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+.placeholder-icon{font-size:48px;margin-bottom:16px;opacity:.3}
+.placeholder h2{font-size:20px;font-weight:700;color:var(--text-primary);margin-bottom:10px}
+.placeholder p{font-size:14px;color:var(--text-secondary);max-width:500px;line-height:1.7}
+.placeholder-tag{
+  margin-top:20px;background:#fef3c7;color:#92400e;
+  border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600;
+}
+
+/* FOCUS RING */
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     HEADER
+     ================================================================ -->
+<header class="app-header">
+  <div class="app-header-left">
+    <div class="app-logo">
+      <div class="app-logo-icon">CP</div>
+      <span class="app-logo-name">CareerPath AI</span>
+    </div>
+    <div class="app-logo-sep"></div>
+    <span class="app-subtitle">Enterprise Talent &amp; Skill Intelligence</span>
+  </div>
+  <div class="app-header-right">
+    <span class="env-badge">Demo · IBM Bob Dev Day</span>
+  </div>
+</header>
+
+<!-- ================================================================
+     TAB NAV
+     ================================================================ -->
+<nav class="tab-nav" id="tabNav" role="tablist">
+  <button class="tab-nav-btn active" data-tab="employees" role="tab">Employees</button>
+  <button class="tab-nav-btn" data-tab="projects" role="tab">Projects</button>
+  <button class="tab-nav-btn" data-tab="career-paths" role="tab">Career Paths</button>
+  <button class="tab-nav-btn" data-tab="learning" role="tab">Learning Resources</button>
+  <button class="tab-nav-btn" data-tab="skill-matrix" role="tab">Skill Matrix</button>
+</nav>
+
+<!-- ================================================================
+     MAIN CONTENT
+     ================================================================ -->
+<main class="app-main">
+
+  <!-- TAB: Employees -->
+  <section id="tab-employees" class="tab-panel active" role="tabpanel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-title">Employees</span>
+        <select id="ef-bu" class="filter-select"><option value="">All Business Units</option></select>
+        <select id="ef-status" class="filter-select">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="BENCH">Bench</option>
+          <option value="LEARNING">Learning</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-primary" id="btn-add-employee">
+          <span class="btn-icon">＋</span> Add Employee
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap" id="emp-table-wrap"><div class="tbl-loading">Loading employees…</div></div>
+      <div id="emp-pagination" class="pagination-bar" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- TAB: Projects -->
+  <section id="tab-projects" class="tab-panel" role="tabpanel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-title">Projects</span>
+        <select id="pf-status" class="filter-select">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="ON_HOLD">On Hold</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-primary" id="btn-add-project">
+          <span class="btn-icon">＋</span> Add Project
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap" id="proj-table-wrap"><div class="tbl-loading">Loading projects…</div></div>
+      <div id="proj-pagination" class="pagination-bar" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- TAB: Career Paths -->
+  <section id="tab-career-paths" class="tab-panel" role="tabpanel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-title">Career Paths</span>
+        <select id="cpf-bu" class="filter-select"><option value="">All Business Units</option></select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-primary" id="btn-add-cp">
+          <span class="btn-icon">＋</span> Add Career Path
+        </button>
+      </div>
+    </div>
+    <div id="cp-content"><div class="tbl-loading">Loading career paths…</div></div>
+    <div id="cp-pagination-bar" style="margin-top:16px;display:none">
+      <div class="card"><div id="cp-pagination" class="pagination-bar"></div></div>
+    </div>
+  </section>
+
+  <!-- TAB: Learning Resources -->
+  <section id="tab-learning" class="tab-panel" role="tabpanel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-title">Learning Resources</span>
+        <select id="lrf-skill" class="filter-select"><option value="">All Skills</option></select>
+        <select id="lrf-type" class="filter-select">
+          <option value="">All Types</option>
+          <option value="COURSE">Course</option>
+          <option value="CERTIFICATION">Certification</option>
+          <option value="BOOK">Book</option>
+          <option value="WORKSHOP">Workshop</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-primary" id="btn-add-lr">
+          <span class="btn-icon">＋</span> Add Resource
+        </button>
+      </div>
+    </div>
+    <div id="lr-content"><div class="tbl-loading">Loading resources…</div></div>
+    <div id="lr-pagination-bar" style="margin-top:16px;display:none">
+      <div class="card"><div id="lr-pagination" class="pagination-bar"></div></div>
+    </div>
+  </section>
+
+  <!-- TAB: Skill Matrix (Bob placeholder) -->
+  <section id="tab-skill-matrix" class="tab-panel" role="tabpanel">
+    <div class="placeholder">
+      <div class="placeholder-icon">◫</div>
+      <h2>Skill Matrix</h2>
+      <p>This view will be wired by IBM Bob during the hackathon. It will render an
+      employees &times; skills heatmap colored by proficiency, scoped to a selected
+      business unit, fed by GET /analytics/skill-heatmap.</p>
+      <!-- TODO(Bob): wire this tab to /analytics/skill-heatmap?business_unit_id= -->
+      <span class="placeholder-tag">Reserved for IBM Bob</span>
+    </div>
+  </section>
+
+</main>
+
+<!-- ================================================================
+     MODAL: Employee
+     ================================================================ -->
+<div class="modal-overlay" id="modal-employee" role="dialog" aria-modal="true" aria-labelledby="modal-emp-title">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-emp-title">Add Employee</span>
+      <button class="modal-close" data-close="modal-employee" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="ef-name">Name<span class="req">*</span></label>
+            <input class="form-control" id="ef-name" type="text" placeholder="Full name"/>
+            <span class="form-err" id="ef-name-err">Name is required.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="ef-email">Email<span class="req">*</span></label>
+            <input class="form-control" id="ef-email" type="email" placeholder="user@company.com"/>
+            <span class="form-err" id="ef-email-err">Valid email required.</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="ef-role">Role<span class="req">*</span></label>
+            <input class="form-control" id="ef-role" type="text" placeholder="e.g. Senior Engineer"/>
+            <span class="form-err" id="ef-role-err">Role is required.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="ef-band">Band<span class="req">*</span></label>
+            <input class="form-control" id="ef-band" type="text" placeholder="e.g. Associate"/>
+            <span class="form-err" id="ef-band-err">Band is required.</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="ef-bu-sel">Business Unit<span class="req">*</span></label>
+            <select class="form-control" id="ef-bu-sel">
+              <option value="">Select…</option>
+            </select>
+            <span class="form-err" id="ef-bu-err">Business unit is required.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="ef-mgr">Line Manager</label>
+            <select class="form-control" id="ef-mgr">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="ef-status-sel">Status<span class="req">*</span></label>
+            <select class="form-control" id="ef-status-sel">
+              <option value="ACTIVE">Active</option>
+              <option value="BENCH">Bench</option>
+              <option value="LEARNING">Learning</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="ef-hire">Hire Date<span class="req">*</span></label>
+            <input class="form-control" id="ef-hire" type="date"/>
+            <span class="form-err" id="ef-hire-err">Hire date is required.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-employee">Cancel</button>
+      <button class="btn btn-primary" id="btn-emp-save">Save Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL: Project
+     ================================================================ -->
+<div class="modal-overlay" id="modal-project" role="dialog" aria-modal="true" aria-labelledby="modal-proj-title">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-proj-title">Add Project</span>
+      <button class="modal-close" data-close="modal-project" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="pf-name">Project Name<span class="req">*</span></label>
+            <input class="form-control" id="pf-name" type="text" placeholder="Project name"/>
+            <span class="form-err" id="pf-name-err">Name is required.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="pf-client">Client<span class="req">*</span></label>
+            <input class="form-control" id="pf-client" type="text" placeholder="Client name"/>
+            <span class="form-err" id="pf-client-err">Client is required.</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="pf-start">Start Date<span class="req">*</span></label>
+            <input class="form-control" id="pf-start" type="date"/>
+            <span class="form-err" id="pf-start-err">Start date is required.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="pf-end">End Date</label>
+            <input class="form-control" id="pf-end" type="date"/>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="pf-status-sel">Status<span class="req">*</span></label>
+          <select class="form-control" id="pf-status-sel">
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="ON_HOLD">On Hold</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-project">Cancel</button>
+      <button class="btn btn-primary" id="btn-proj-save">Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL: Career Path
+     ================================================================ -->
+<div class="modal-overlay" id="modal-cp" role="dialog" aria-modal="true" aria-labelledby="modal-cp-title">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-cp-title">Add Career Path</span>
+      <button class="modal-close" data-close="modal-cp" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label" for="cpf-bu-sel">Business Unit<span class="req">*</span></label>
+          <select class="form-control" id="cpf-bu-sel"><option value="">Select…</option></select>
+          <span class="form-err" id="cpf-bu-err">Business unit is required.</span>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="cpf-from">From Role<span class="req">*</span></label>
+            <input class="form-control" id="cpf-from" type="text" placeholder="e.g. Engineer"/>
+            <span class="form-err" id="cpf-from-err">From role is required.</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="cpf-to">To Role<span class="req">*</span></label>
+            <input class="form-control" id="cpf-to" type="text" placeholder="e.g. Senior Engineer"/>
+            <span class="form-err" id="cpf-to-err">To role is required.</span>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="cpf-desc">Description</label>
+          <textarea class="form-control" id="cpf-desc" placeholder="Optional description…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-cp">Cancel</button>
+      <button class="btn btn-primary" id="btn-cp-save">Save Career Path</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL: Learning Resource
+     ================================================================ -->
+<div class="modal-overlay" id="modal-lr" role="dialog" aria-modal="true" aria-labelledby="modal-lr-title">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-lr-title">Add Learning Resource</span>
+      <button class="modal-close" data-close="modal-lr" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label" for="lrf-skill-sel">Skill<span class="req">*</span></label>
+          <select class="form-control" id="lrf-skill-sel"><option value="">Select skill…</option></select>
+          <span class="form-err" id="lrf-skill-err">Skill is required.</span>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="lrf-title">Title<span class="req">*</span></label>
+          <input class="form-control" id="lrf-title" type="text" placeholder="Resource title"/>
+          <span class="form-err" id="lrf-title-err">Title is required.</span>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="lrf-type-sel">Type<span class="req">*</span></label>
+            <select class="form-control" id="lrf-type-sel">
+              <option value="COURSE">Course</option>
+              <option value="CERTIFICATION">Certification</option>
+              <option value="BOOK">Book</option>
+              <option value="WORKSHOP">Workshop</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="lrf-hours">Duration (hours)<span class="req">*</span></label>
+            <input class="form-control" id="lrf-hours" type="number" min="1" placeholder="e.g. 8"/>
+            <span class="form-err" id="lrf-hours-err">Positive integer required.</span>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="lrf-url">URL</label>
+          <input class="form-control" id="lrf-url" type="text" placeholder="https://…"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-lr">Cancel</button>
+      <button class="btn btn-primary" id="btn-lr-save">Save Resource</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     CONFIRM DIALOG
+     ================================================================ -->
+<div class="confirm-overlay" id="confirm-overlay" role="alertdialog" aria-modal="true">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title">Delete record?</div>
+    <div class="confirm-msg" id="confirm-msg">This action cannot be undone.</div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-root" aria-live="polite"></div>
+
+<!-- ================================================================
+     JAVASCRIPT
+     ================================================================ -->
+<script>
+'use strict';
+
+// ============================================================
+// 1. CONSTANTS
+// ============================================================
+const API_BASE = '';
+const PAGE_SIZE = 10; // records per page — client-side slice (dataset < 200 rows)
+
+const EMP_STATUSES   = ['ACTIVE','BENCH','LEARNING'];
+const PROJ_STATUSES  = ['ACTIVE','COMPLETED','ON_HOLD'];
+const LR_TYPES       = ['COURSE','CERTIFICATION','BOOK','WORKSHOP'];
+
+// ============================================================
+// 2. STATE
+// ============================================================
+const cache = {
+  bus: null,      // BusinessUnit[]
+  employees: null,// Employee[]
+  projects: null, // Project[]
+  careerPaths: null,
+  cpReqs: null,
+  skills: null,
+  resources: null,
+  assignments: null,
+};
+
+const pages = { employees:1, projects:1, careerPaths:1, learning:1 };
+const filters = { empBu:'', empStatus:'', projStatus:'', cpBu:'', lrSkill:'', lrType:'' };
+
+// Tracks which record is being edited (null = create)
+let editingId = { employee:null, project:null, careerPath:null, resource:null };
+// Focus anchor for modal return-focus
+let modalTrigger = null;
+// Confirm dialog resolve callback
+let confirmResolve = null;
+
+// ============================================================
+// 3. API HELPERS
+// ============================================================
+
+/** Fetch JSON from a GET endpoint. Throws on non-2xx. */
+async function apiGet(path) {
+  const res = await fetch(API_BASE + path);
+  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
+  return res.json();
+}
+
+/** POST with JSON body. Returns parsed response or throws. */
+async function apiPost(path, body) {
+  const res = await fetch(API_BASE + path, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await safeParseError(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+/** PUT with JSON body. Returns parsed response or throws. */
+async function apiPut(path, body) {
+  const res = await fetch(API_BASE + path, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await safeParseError(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+/** DELETE. Expects 204 No Content. Throws on non-2xx. */
+async function apiDelete(path) {
+  const res = await fetch(API_BASE + path, { method:'DELETE' });
+  if (!res.ok) {
+    const err = await safeParseError(res);
+    throw new Error(err);
+  }
+}
+
+/** Try to extract a human-readable message from an error response body. */
+async function safeParseError(res) {
+  try {
+    const data = await res.json();
+    if (data && data.detail) {
+      if (typeof data.detail === 'string') return data.detail;
+      if (data.detail.message) return data.detail.message;
+      return JSON.stringify(data.detail);
+    }
+  } catch(_) {}
+  return `Server error (${res.status})`;
+}
+
+// ============================================================
+// 4. UI HELPERS
+// ============================================================
+
+/** Show a toast. type: 'success' | 'error' */
+function showToast(msg, type='success') {
+  const root = document.getElementById('toast-root');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type === 'error' ? ' error' : '');
+  t.innerHTML = `<span class="toast-icon">${type==='error'?'✕':'✓'}</span><span class="toast-msg">${esc(msg)}</span>`;
+  root.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(), 300); }, 3000);
+}
+
+/** Open a modal overlay. */
+function openModal(id) {
+  const el = document.getElementById(id);
+  el.classList.add('open');
+  const first = el.querySelector('input,select,textarea,button:not(.modal-close)');
+  if (first) setTimeout(()=>first.focus(), 50);
+}
+
+/** Close a modal overlay. */
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; }
+}
+
+/** Show a confirmation dialog. Returns Promise<boolean>. */
+function confirmDialog(title, msg) {
+  return new Promise(resolve => {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('confirm-overlay').classList.add('open');
+    confirmResolve = resolve;
+  });
+}
+
+/** Render a status/type pill. */
+function pill(value) {
+  if (!value) return '—';
+  const map = {
+    ACTIVE:'pill-active',BENCH:'pill-bench',LEARNING:'pill-learning',
+    COMPLETED:'pill-completed',ON_HOLD:'pill-on-hold',
+    IN_PROGRESS:'pill-in-progress',ENROLLED:'pill-enrolled',DROPPED:'pill-dropped',
+    COURSE:'pill-course',CERTIFICATION:'pill-certification',
+    BOOK:'pill-book',WORKSHOP:'pill-workshop',
+  };
+  const cls = map[value] || 'pill-neutral';
+  const label = value.replace(/_/g,' ');
+  return `<span class="pill ${cls}">${esc(label)}</span>`;
+}
+
+/** HTML-escape a value. */
+function esc(v) {
+  if (v == null) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/** Format a date string yyyy-mm-dd nicely. */
+function fmtDate(d) { return d ? d.slice(0,10) : '—'; }
+
+/**
+ * Render a pagination bar into an element.
+ * @param {string} containerId - element id to render into
+ * @param {string} barId       - visibility-toggled wrapper id (optional)
+ * @param {number} total       - total record count
+ * @param {number} page        - current page (1-based)
+ * @param {Function} onPage    - callback(newPage)
+ */
+function renderPagination(containerId, barId, total, page, onPage) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = total === 0 ? 0 : (page-1)*PAGE_SIZE + 1;
+  const end   = Math.min(page * PAGE_SIZE, total);
+
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  el.innerHTML = `
+    <span class="pagination-info">Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> records</span>
+    <div class="pagination-controls">
+      <button class="btn-page" id="${containerId}-prev" ${page<=1?'disabled':''} aria-label="Previous page">&#8592; Previous</button>
+      <span class="pagination-page">Page ${page} of ${totalPages}</span>
+      <button class="btn-page" id="${containerId}-next" ${page>=totalPages?'disabled':''} aria-label="Next page">Next &#8594;</button>
+    </div>`;
+
+  el.style.display = 'flex';
+  if (barId) document.getElementById(barId).style.display = (total > 0 ? 'block' : 'none');
+
+  document.getElementById(`${containerId}-prev`).onclick = () => { if (page>1) onPage(page-1); };
+  document.getElementById(`${containerId}-next`).onclick = () => { if (page<totalPages) onPage(page+1); };
+}
+
+/** Slice an array to the current page. */
+function pageSlice(arr, page) {
+  return arr.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+}
+
+/** Render an empty-state block. */
+function emptyState(msg='No records found', hint='Try adjusting your filters.') {
+  return `<div class="tbl-empty">
+    <div class="tbl-empty-icon">—</div>
+    <h3>${esc(msg)}</h3>
+    <p>${esc(hint)}</p>
+  </div>`;
+}
+
+// ============================================================
+// 5a. CACHE LOADER — shared reference data
+// ============================================================
+
+async function ensureBUs() {
+  if (!cache.bus) cache.bus = await apiGet('/business-units/?limit=500');
+  return cache.bus;
+}
+async function ensureEmployees() {
+  if (!cache.employees) cache.employees = await apiGet('/employees/?limit=500');
+  return cache.employees;
+}
+async function ensureSkills() {
+  if (!cache.skills) cache.skills = await apiGet('/skills/?limit=500');
+  return cache.skills;
+}
+async function ensureAssignments() {
+  if (!cache.assignments) cache.assignments = await apiGet('/assignments/?limit=500');
+  return cache.assignments;
+}
+
+/** Populate a <select> element from an array. */
+function fillSelect(selectId, items, valFn, labelFn, includeBlank) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const blank = includeBlank ? `<option value="">Select…</option>` : '';
+  sel.innerHTML = blank + items.map(i=>`<option value="${esc(valFn(i))}">${esc(labelFn(i))}</option>`).join('');
+}
+
+// ============================================================
+// 5b. EMPLOYEES TAB
+// ============================================================
+
+async function loadEmployeesTab() {
+  const wrap = document.getElementById('emp-table-wrap');
+  wrap.innerHTML = '<div class="tbl-loading">Loading…</div>';
+  try {
+    const [emps, bus] = await Promise.all([ensureEmployees(), ensureBUs()]);
+
+    // Populate filter BU dropdown (once)
+    const buSel = document.getElementById('ef-bu');
+    if (buSel.options.length <= 1) {
+      bus.forEach(b => { buSel.innerHTML += `<option value="${b.id}">${esc(b.name)}</option>`; });
+    }
+    renderEmployees();
+  } catch(e) {
+    wrap.innerHTML = `<div class="tbl-loading" style="color:var(--danger)">${esc(e.message)}</div>`;
+    showToast('Failed to load employees: ' + e.message, 'error');
+  }
+}
+
+function getFilteredEmployees() {
+  let rows = cache.employees || [];
+  if (filters.empBu)     rows = rows.filter(e => String(e.business_unit_id) === filters.empBu);
+  if (filters.empStatus) rows = rows.filter(e => e.current_status === filters.empStatus);
+  return rows;
+}
+
+function renderEmployees() {
+  const filtered = getFilteredEmployees();
+  const page = pages.employees;
+  const slice = pageSlice(filtered, page);
+  const buMap = Object.fromEntries((cache.bus||[]).map(b=>[b.id,b.name]));
+  const empMap = Object.fromEntries((cache.employees||[]).map(e=>[e.id,e.name]));
+
+  const wrap = document.getElementById('emp-table-wrap');
+  if (!filtered.length) {
+    wrap.innerHTML = emptyState('No employees found','Try adjusting the filters.');
+    document.getElementById('emp-pagination').style.display='none';
+    return;
+  }
+
+  let rows = slice.map(e => `
+    <tr>
+      <td>${esc(e.name)}</td>
+      <td class="col-muted">${esc(e.role)}</td>
+      <td class="col-muted">${esc(e.band)}</td>
+      <td>${esc(buMap[e.business_unit_id]||'—')}</td>
+      <td class="col-muted">${esc(e.line_manager_id ? empMap[e.line_manager_id]||'—' : '—')}</td>
+      <td>${fmtDate(e.hire_date)}</td>
+      <td>${pill(e.current_status)}</td>
+      <td class="col-actions">
+        <button class="btn btn-ghost" data-edit-emp="${e.id}" aria-label="Edit ${esc(e.name)}">✎</button>
+        <button class="btn btn-ghost-danger" data-del-emp="${e.id}" data-del-name="${esc(e.name)}" aria-label="Delete ${esc(e.name)}">✕</button>
+      </td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>Name</th><th>Role</th><th>Band</th><th>Business Unit</th>
+      <th>Line Manager</th><th>Hire Date</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  renderPagination('emp-pagination', null, filtered.length, page, p=>{pages.employees=p; renderEmployees();});
+  document.getElementById('emp-pagination').style.display = 'flex';
+
+  // Row action handlers
+  wrap.querySelectorAll('[data-edit-emp]').forEach(btn => {
+    btn.onclick = () => openEmployeeModal(parseInt(btn.dataset.editEmp));
+  });
+  wrap.querySelectorAll('[data-del-emp]').forEach(btn => {
+    btn.onclick = () => deleteEmployee(parseInt(btn.dataset.delEmp), btn.dataset.delName);
+  });
+}
+
+async function openEmployeeModal(id=null) {
+  modalTrigger = document.activeElement;
+  editingId.employee = id;
+  const bus = await ensureBUs();
+  const emps = await ensureEmployees();
+
+  // Fill BU dropdown
+  const buSel = document.getElementById('ef-bu-sel');
+  buSel.innerHTML = '<option value="">Select…</option>' + bus.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+
+  // Fill manager dropdown (exclude self)
+  const mgrSel = document.getElementById('ef-mgr');
+  mgrSel.innerHTML = '<option value="">None</option>' + emps
+    .filter(e => e.id !== id)
+    .map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+
+  clearFormErrors('ef');
+  if (id) {
+    const e = emps.find(x=>x.id===id);
+    document.getElementById('modal-emp-title').textContent = 'Edit Employee';
+    document.getElementById('ef-name').value = e.name||'';
+    document.getElementById('ef-email').value = e.email||'';
+    document.getElementById('ef-role').value = e.role||'';
+    document.getElementById('ef-band').value = e.band||'';
+    buSel.value = e.business_unit_id||'';
+    mgrSel.value = e.line_manager_id||'';
+    document.getElementById('ef-status-sel').value = e.current_status||'ACTIVE';
+    document.getElementById('ef-hire').value = e.hire_date||'';
+  } else {
+    document.getElementById('modal-emp-title').textContent = 'Add Employee';
+    ['ef-name','ef-email','ef-role','ef-band','ef-hire'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ef-status-sel').value='ACTIVE';
+    buSel.value=''; mgrSel.value='';
+  }
+  openModal('modal-employee');
+}
+
+async function saveEmployee() {
+  if (!validateEmployee()) return;
+  const body = {
+    name:   document.getElementById('ef-name').value.trim(),
+    email:  document.getElementById('ef-email').value.trim(),
+    role:   document.getElementById('ef-role').value.trim(),
+    band:   document.getElementById('ef-band').value.trim(),
+    business_unit_id: parseInt(document.getElementById('ef-bu-sel').value),
+    line_manager_id: document.getElementById('ef-mgr').value ? parseInt(document.getElementById('ef-mgr').value) : null,
+    current_status: document.getElementById('ef-status-sel').value,
+    hire_date: document.getElementById('ef-hire').value,
+  };
+  const btn = document.getElementById('btn-emp-save');
+  btn.disabled = true;
+  try {
+    if (editingId.employee) {
+      await apiPut(`/employees/${editingId.employee}`, body);
+      showToast('Employee updated successfully.');
+    } else {
+      await apiPost('/employees/', body);
+      showToast('Employee created successfully.');
+    }
+    cache.employees = null; // invalidate
+    await ensureEmployees();
+    closeModal('modal-employee');
+    pages.employees = 1;
+    renderEmployees();
+  } catch(e) {
+    showToast('Failed to save employee: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+async function deleteEmployee(id, name) {
+  const ok = await confirmDialog('Delete Employee', `Delete "${name}"? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await apiDelete(`/employees/${id}`);
+    cache.employees = null;
+    await ensureEmployees();
+    showToast('Employee deleted.');
+    pages.employees = 1;
+    renderEmployees();
+  } catch(e) {
+    showToast('Failed to delete employee: ' + e.message, 'error');
+  }
+}
+
+function validateEmployee() {
+  let ok = true;
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  ok = requireField('ef-name','ef-name-err') && ok;
+  ok = requireField('ef-email','ef-email-err', v=>emailRe.test(v), 'Valid email required.') && ok;
+  ok = requireField('ef-role','ef-role-err') && ok;
+  ok = requireField('ef-band','ef-band-err') && ok;
+  ok = requireSelect('ef-bu-sel','ef-bu-err') && ok;
+  ok = requireField('ef-hire','ef-hire-err') && ok;
+  return ok;
+}
+
+// ============================================================
+// 5c. PROJECTS TAB
+// ============================================================
+
+async function loadProjectsTab() {
+  const wrap = document.getElementById('proj-table-wrap');
+  wrap.innerHTML = '<div class="tbl-loading">Loading…</div>';
+  try {
+    await Promise.all([
+      ensureProjectsCache(),
+      ensureAssignments(),
+    ]);
+    renderProjects();
+  } catch(e) {
+    wrap.innerHTML = `<div class="tbl-loading" style="color:var(--danger)">${esc(e.message)}</div>`;
+    showToast('Failed to load projects: ' + e.message, 'error');
+  }
+}
+
+async function ensureProjectsCache() {
+  if (!cache.projects) cache.projects = await apiGet('/projects/?limit=500');
+  return cache.projects;
+}
+
+function getFilteredProjects() {
+  let rows = cache.projects || [];
+  if (filters.projStatus) rows = rows.filter(p => p.status === filters.projStatus);
+  return rows;
+}
+
+function renderProjects() {
+  const filtered = getFilteredProjects();
+  const page = pages.projects;
+  const slice = pageSlice(filtered, page);
+  const assignCount = {};
+  (cache.assignments||[]).forEach(a => { assignCount[a.project_id] = (assignCount[a.project_id]||0)+1; });
+
+  const wrap = document.getElementById('proj-table-wrap');
+  if (!filtered.length) {
+    wrap.innerHTML = emptyState('No projects found','Try adjusting the status filter.');
+    document.getElementById('proj-pagination').style.display='none';
+    return;
+  }
+
+  const rows = slice.map(p=>`
+    <tr>
+      <td>${esc(p.name)}</td>
+      <td class="col-muted">${esc(p.client)}</td>
+      <td>${pill(p.status)}</td>
+      <td class="col-muted">${fmtDate(p.start_date)}</td>
+      <td class="col-muted">${fmtDate(p.end_date)}</td>
+      <td class="col-num">${assignCount[p.id]||0}</td>
+      <td class="col-actions">
+        <button class="btn btn-ghost" data-edit-proj="${p.id}" aria-label="Edit ${esc(p.name)}">✎</button>
+        <button class="btn btn-ghost-danger" data-del-proj="${p.id}" data-del-name="${esc(p.name)}" aria-label="Delete ${esc(p.name)}">✕</button>
+      </td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>Name</th><th>Client</th><th>Status</th><th>Start</th><th>End</th><th class="col-num">Assignees</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  renderPagination('proj-pagination', null, filtered.length, page, p=>{pages.projects=p; renderProjects();});
+  document.getElementById('proj-pagination').style.display='flex';
+
+  wrap.querySelectorAll('[data-edit-proj]').forEach(btn=>{
+    btn.onclick = ()=>openProjectModal(parseInt(btn.dataset.editProj));
+  });
+  wrap.querySelectorAll('[data-del-proj]').forEach(btn=>{
+    btn.onclick = ()=>deleteProject(parseInt(btn.dataset.delProj), btn.dataset.delName);
+  });
+}
+
+function openProjectModal(id=null) {
+  modalTrigger = document.activeElement;
+  editingId.project = id;
+  clearFormErrors('pf');
+  if (id) {
+    const p = (cache.projects||[]).find(x=>x.id===id);
+    document.getElementById('modal-proj-title').textContent = 'Edit Project';
+    document.getElementById('pf-name').value = p.name||'';
+    document.getElementById('pf-client').value = p.client||'';
+    document.getElementById('pf-start').value = p.start_date||'';
+    document.getElementById('pf-end').value = p.end_date||'';
+    document.getElementById('pf-status-sel').value = p.status||'ACTIVE';
+  } else {
+    document.getElementById('modal-proj-title').textContent = 'Add Project';
+    ['pf-name','pf-client','pf-start','pf-end'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('pf-status-sel').value='ACTIVE';
+  }
+  openModal('modal-project');
+}
+
+async function saveProject() {
+  if (!validateProject()) return;
+  const body = {
+    name:   document.getElementById('pf-name').value.trim(),
+    client: document.getElementById('pf-client').value.trim(),
+    start_date: document.getElementById('pf-start').value,
+    end_date: document.getElementById('pf-end').value || null,
+    status: document.getElementById('pf-status-sel').value,
+  };
+  const btn = document.getElementById('btn-proj-save');
+  btn.disabled = true;
+  try {
+    if (editingId.project) {
+      await apiPut(`/projects/${editingId.project}`, body);
+      showToast('Project updated successfully.');
+    } else {
+      await apiPost('/projects/', body);
+      showToast('Project created successfully.');
+    }
+    cache.projects = null;
+    await ensureProjectsCache();
+    closeModal('modal-project');
+    pages.projects = 1;
+    renderProjects();
+  } catch(e) {
+    showToast('Failed to save project: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+async function deleteProject(id, name) {
+  const ok = await confirmDialog('Delete Project', `Delete "${name}"? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await apiDelete(`/projects/${id}`);
+    cache.projects = null;
+    await ensureProjectsCache();
+    showToast('Project deleted.');
+    pages.projects = 1;
+    renderProjects();
+  } catch(e) {
+    showToast('Failed to delete project: ' + e.message, 'error');
+  }
+}
+
+function validateProject() {
+  let ok = true;
+  ok = requireField('pf-name','pf-name-err') && ok;
+  ok = requireField('pf-client','pf-client-err') && ok;
+  ok = requireField('pf-start','pf-start-err') && ok;
+  return ok;
+}
+
+// ============================================================
+// 5d. CAREER PATHS TAB
+// ============================================================
+
+async function loadCareerPathsTab() {
+  const cont = document.getElementById('cp-content');
+  cont.innerHTML = '<div class="tbl-loading">Loading…</div>';
+  try {
+    const [bus] = await Promise.all([
+      ensureBUs(),
+      ensureCareerPathsCache(),
+      ensureCPReqsCache(),
+    ]);
+    // Populate filter BU dropdown (once)
+    const cpfBu = document.getElementById('cpf-bu');
+    if (cpfBu.options.length <= 1)
+      bus.forEach(b=>{ cpfBu.innerHTML += `<option value="${b.id}">${esc(b.name)}</option>`; });
+    renderCareerPaths();
+  } catch(e) {
+    cont.innerHTML = `<div class="tbl-loading" style="color:var(--danger)">${esc(e.message)}</div>`;
+    showToast('Failed to load career paths: ' + e.message, 'error');
+  }
+}
+
+async function ensureCareerPathsCache() {
+  if (!cache.careerPaths) cache.careerPaths = await apiGet('/career-paths/?limit=500');
+  return cache.careerPaths;
+}
+async function ensureCPReqsCache() {
+  if (!cache.cpReqs) cache.cpReqs = await apiGet('/career-path-requirements/?limit=500');
+  return cache.cpReqs;
+}
+
+function getFilteredCPs() {
+  let rows = cache.careerPaths || [];
+  if (filters.cpBu) rows = rows.filter(c => String(c.business_unit_id) === filters.cpBu);
+  return rows;
+}
+
+function renderCareerPaths() {
+  const filtered = getFilteredCPs();
+  const page = pages.careerPaths;
+  const slice = pageSlice(filtered, page);
+  const buMap = Object.fromEntries((cache.bus||[]).map(b=>[b.id,b.name]));
+  const skillMap = Object.fromEntries((cache.skills||[]).map(s=>[s.id,s.name]));
+  const reqsByPath = {};
+  (cache.cpReqs||[]).forEach(r=>{ (reqsByPath[r.career_path_id]||(reqsByPath[r.career_path_id]=[])).push(r); });
+
+  const cont = document.getElementById('cp-content');
+  if (!filtered.length) {
+    cont.innerHTML = `<div class="card">${emptyState('No career paths found','Try clearing the business unit filter.')}</div>`;
+    document.getElementById('cp-pagination-bar').style.display='none';
+    return;
+  }
+
+  const cards = slice.map(cp=>{
+    const reqs = reqsByPath[cp.id]||[];
+    const chips = reqs.map(r=>`<span class="chip ${(cache.skills||[]).find(s=>s.id===r.skill_id)?.is_emerging?'chip-em':''}">${esc(skillMap[r.skill_id]||r.skill_id)} ≥${r.min_proficiency}</span>`).join('');
+    return `<div class="cp-card">
+      <div class="cp-actions">
+        <button class="btn btn-ghost" data-edit-cp="${cp.id}" aria-label="Edit career path">✎</button>
+        <button class="btn btn-ghost-danger" data-del-cp="${cp.id}" data-del-name="${esc(cp.from_role+' → '+cp.to_role)}" aria-label="Delete career path">✕</button>
+      </div>
+      <div class="cp-path">
+        <span>${esc(cp.from_role)}</span>
+        <span class="cp-arrow">→</span>
+        <span>${esc(cp.to_role)}</span>
+      </div>
+      <span class="cp-bu-badge">${esc(buMap[cp.business_unit_id]||'BU '+cp.business_unit_id)}</span>
+      ${cp.description?`<div class="cp-desc">${esc(cp.description)}</div>`:''}
+      <div class="skill-chips">${chips||'<span style="font-size:12px;color:var(--text-muted)">No skill requirements defined</span>'}</div>
+    </div>`;
+  }).join('');
+
+  cont.innerHTML = `<div class="cp-grid">${cards}</div>`;
+
+  renderPagination('cp-pagination', 'cp-pagination-bar', filtered.length, page, p=>{pages.careerPaths=p; renderCareerPaths();});
+  document.getElementById('cp-pagination-bar').style.display='block';
+
+  cont.querySelectorAll('[data-edit-cp]').forEach(btn=>{
+    btn.onclick=()=>openCPModal(parseInt(btn.dataset.editCp));
+  });
+  cont.querySelectorAll('[data-del-cp]').forEach(btn=>{
+    btn.onclick=()=>deleteCP(parseInt(btn.dataset.delCp), btn.dataset.delName);
+  });
+}
+
+async function openCPModal(id=null) {
+  modalTrigger = document.activeElement;
+  editingId.careerPath = id;
+  const bus = await ensureBUs();
+  fillSelect('cpf-bu-sel', bus, b=>b.id, b=>b.name, true);
+  clearFormErrors('cpf');
+  if (id) {
+    const cp = (cache.careerPaths||[]).find(x=>x.id===id);
+    document.getElementById('modal-cp-title').textContent='Edit Career Path';
+    document.getElementById('cpf-bu-sel').value = cp.business_unit_id||'';
+    document.getElementById('cpf-from').value = cp.from_role||'';
+    document.getElementById('cpf-to').value = cp.to_role||'';
+    document.getElementById('cpf-desc').value = cp.description||'';
+  } else {
+    document.getElementById('modal-cp-title').textContent='Add Career Path';
+    document.getElementById('cpf-bu-sel').value='';
+    ['cpf-from','cpf-to','cpf-desc'].forEach(x=>document.getElementById(x).value='');
+  }
+  openModal('modal-cp');
+}
+
+async function saveCP() {
+  if (!validateCP()) return;
+  const body = {
+    business_unit_id: parseInt(document.getElementById('cpf-bu-sel').value),
+    from_role: document.getElementById('cpf-from').value.trim(),
+    to_role:   document.getElementById('cpf-to').value.trim(),
+    description: document.getElementById('cpf-desc').value.trim()||null,
+  };
+  const btn = document.getElementById('btn-cp-save');
+  btn.disabled = true;
+  try {
+    if (editingId.careerPath) {
+      await apiPut(`/career-paths/${editingId.careerPath}`, body);
+      showToast('Career path updated.');
+    } else {
+      await apiPost('/career-paths/', body);
+      showToast('Career path created.');
+    }
+    cache.careerPaths = null;
+    await ensureCareerPathsCache();
+    closeModal('modal-cp');
+    pages.careerPaths = 1;
+    renderCareerPaths();
+  } catch(e) {
+    showToast('Failed to save career path: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+async function deleteCP(id, name) {
+  const ok = await confirmDialog('Delete Career Path', `Delete "${name}"? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await apiDelete(`/career-paths/${id}`);
+    cache.careerPaths = null;
+    await ensureCareerPathsCache();
+    showToast('Career path deleted.');
+    pages.careerPaths = 1;
+    renderCareerPaths();
+  } catch(e) {
+    showToast('Failed to delete career path: ' + e.message, 'error');
+  }
+}
+
+function validateCP() {
+  let ok = true;
+  ok = requireSelect('cpf-bu-sel','cpf-bu-err') && ok;
+  ok = requireField('cpf-from','cpf-from-err') && ok;
+  ok = requireField('cpf-to','cpf-to-err') && ok;
+  return ok;
+}
+
+// ============================================================
+// 5e. LEARNING RESOURCES TAB
+// ============================================================
+
+async function loadLearningTab() {
+  const cont = document.getElementById('lr-content');
+  cont.innerHTML = '<div class="tbl-loading">Loading…</div>';
+  try {
+    const [skills] = await Promise.all([
+      ensureSkills(),
+      ensureResourcesCache(),
+    ]);
+    // Populate skill filter (once)
+    const lrfSkill = document.getElementById('lrf-skill');
+    if (lrfSkill.options.length <= 1)
+      skills.forEach(s=>{ lrfSkill.innerHTML += `<option value="${s.id}">${esc(s.name)}</option>`; });
+    renderResources();
+  } catch(e) {
+    cont.innerHTML = `<div class="tbl-loading" style="color:var(--danger)">${esc(e.message)}</div>`;
+    showToast('Failed to load resources: ' + e.message, 'error');
+  }
+}
+
+async function ensureResourcesCache() {
+  if (!cache.resources) cache.resources = await apiGet('/learning-resources/?limit=500');
+  return cache.resources;
+}
+
+function getFilteredResources() {
+  let rows = cache.resources || [];
+  if (filters.lrSkill) rows = rows.filter(r => String(r.skill_id) === filters.lrSkill);
+  if (filters.lrType)  rows = rows.filter(r => r.type === filters.lrType);
+  return rows;
+}
+
+function renderResources() {
+  const filtered = getFilteredResources();
+  const page = pages.learning;
+  const slice = pageSlice(filtered, page);
+  const skillMap = Object.fromEntries((cache.skills||[]).map(s=>[s.id,s.name]));
+
+  const cont = document.getElementById('lr-content');
+  if (!filtered.length) {
+    cont.innerHTML = `<div class="card">${emptyState('No resources found','Try adjusting the filters.')}</div>`;
+    document.getElementById('lr-pagination-bar').style.display='none';
+    return;
+  }
+
+  const cards = slice.map(r=>`
+    <div class="res-card">
+      <div class="res-actions">
+        <button class="btn btn-ghost" data-edit-lr="${r.id}" aria-label="Edit ${esc(r.title)}">✎</button>
+        <button class="btn btn-ghost-danger" data-del-lr="${r.id}" data-del-name="${esc(r.title)}" aria-label="Delete ${esc(r.title)}">✕</button>
+      </div>
+      <div class="res-title">${esc(r.title)}</div>
+      <div class="res-meta">
+        ${pill(r.type)}
+        <span class="res-dur">${r.duration_hours}h</span>
+        <span style="font-size:12px;color:var(--text-muted)">${esc(skillMap[r.skill_id]||'')}</span>
+      </div>
+      ${r.url?`<a class="res-link" href="${esc(r.url)}" target="_blank" rel="noopener">Open resource ↗</a>`:''}
+    </div>`).join('');
+
+  cont.innerHTML = `<div class="res-grid">${cards}</div>`;
+
+  renderPagination('lr-pagination','lr-pagination-bar', filtered.length, page, p=>{pages.learning=p; renderResources();});
+  document.getElementById('lr-pagination-bar').style.display='block';
+
+  cont.querySelectorAll('[data-edit-lr]').forEach(btn=>{
+    btn.onclick=()=>openLRModal(parseInt(btn.dataset.editLr));
+  });
+  cont.querySelectorAll('[data-del-lr]').forEach(btn=>{
+    btn.onclick=()=>deleteLR(parseInt(btn.dataset.delLr), btn.dataset.delName);
+  });
+}
+
+async function openLRModal(id=null) {
+  modalTrigger = document.activeElement;
+  editingId.resource = id;
+  const skills = await ensureSkills();
+  fillSelect('lrf-skill-sel', skills, s=>s.id, s=>s.name, true);
+  clearFormErrors('lrf');
+  if (id) {
+    const r = (cache.resources||[]).find(x=>x.id===id);
+    document.getElementById('modal-lr-title').textContent='Edit Learning Resource';
+    document.getElementById('lrf-skill-sel').value = r.skill_id||'';
+    document.getElementById('lrf-title').value = r.title||'';
+    document.getElementById('lrf-type-sel').value = r.type||'COURSE';
+    document.getElementById('lrf-hours').value = r.duration_hours||'';
+    document.getElementById('lrf-url').value = r.url||'';
+  } else {
+    document.getElementById('modal-lr-title').textContent='Add Learning Resource';
+    document.getElementById('lrf-skill-sel').value='';
+    ['lrf-title','lrf-hours','lrf-url'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('lrf-type-sel').value='COURSE';
+  }
+  openModal('modal-lr');
+}
+
+async function saveLR() {
+  if (!validateLR()) return;
+  const body = {
+    skill_id: parseInt(document.getElementById('lrf-skill-sel').value),
+    title:    document.getElementById('lrf-title').value.trim(),
+    type:     document.getElementById('lrf-type-sel').value,
+    duration_hours: parseInt(document.getElementById('lrf-hours').value),
+    url: document.getElementById('lrf-url').value.trim()||null,
+  };
+  const btn = document.getElementById('btn-lr-save');
+  btn.disabled = true;
+  try {
+    if (editingId.resource) {
+      await apiPut(`/learning-resources/${editingId.resource}`, body);
+      showToast('Resource updated.');
+    } else {
+      await apiPost('/learning-resources/', body);
+      showToast('Resource created.');
+    }
+    cache.resources = null;
+    await ensureResourcesCache();
+    closeModal('modal-lr');
+    pages.learning = 1;
+    renderResources();
+  } catch(e) {
+    showToast('Failed to save resource: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+async function deleteLR(id, name) {
+  const ok = await confirmDialog('Delete Resource', `Delete "${name}"? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await apiDelete(`/learning-resources/${id}`);
+    cache.resources = null;
+    await ensureResourcesCache();
+    showToast('Resource deleted.');
+    pages.learning = 1;
+    renderResources();
+  } catch(e) {
+    showToast('Failed to delete resource: ' + e.message, 'error');
+  }
+}
+
+function validateLR() {
+  let ok = true;
+  ok = requireSelect('lrf-skill-sel','lrf-skill-err') && ok;
+  ok = requireField('lrf-title','lrf-title-err') && ok;
+  ok = requireField('lrf-hours','lrf-hours-err', v=>Number.isInteger(+v)&&+v>0, 'Must be a positive integer.') && ok;
+  return ok;
+}
+
+// ============================================================
+// 6. FORM VALIDATION HELPERS
+// ============================================================
+
+function requireField(inputId, errId, extraCheck, errMsg) {
+  const el = document.getElementById(inputId);
+  const err = document.getElementById(errId);
+  const val = el.value.trim();
+  const valid = val.length > 0 && (!extraCheck || extraCheck(val));
+  el.classList.toggle('error', !valid);
+  if (err) { err.textContent = (!valid && errMsg) ? errMsg : err.textContent; err.classList.toggle('show', !valid); }
+  return valid;
+}
+
+function requireSelect(selectId, errId) {
+  const el = document.getElementById(selectId);
+  const err = document.getElementById(errId);
+  const valid = el.value !== '';
+  el.classList.toggle('error', !valid);
+  if (err) err.classList.toggle('show', !valid);
+  return valid;
+}
+
+function clearFormErrors(prefix) {
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el=>{
+    el.classList.remove('error','show');
+  });
+}
+
+// ============================================================
+// 7. GLOBAL EVENT WIRING
+// ============================================================
+
+// Tab switching
+document.querySelectorAll('.tab-nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-'+tab).classList.add('active');
+
+    // Lazy-load tab data on first activation
+    if (tab==='employees' && !cache.employees) loadEmployeesTab();
+    if (tab==='projects' && !cache.projects)   loadProjectsTab();
+    if (tab==='career-paths' && !cache.careerPaths) loadCareerPathsTab();
+    if (tab==='learning' && !cache.resources)  loadLearningTab();
+  });
+});
+
+// Modal close: X button and data-close buttons
+document.addEventListener('click', e=>{
+  const closer = e.target.closest('[data-close]');
+  if (closer) closeModal(closer.dataset.close);
+  // Click outside modal box closes it
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+    if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; }
+  }
+});
+
+// ESC key closes open modal
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape') {
+    const open = document.querySelector('.modal-overlay.open');
+    if (open) { open.classList.remove('open'); if (modalTrigger) { modalTrigger.focus(); modalTrigger=null; } }
+    if (document.getElementById('confirm-overlay').classList.contains('open')) {
+      document.getElementById('confirm-overlay').classList.remove('open');
+      if (confirmResolve) { confirmResolve(false); confirmResolve=null; }
+    }
+  }
+});
+
+// Confirm dialog actions
+document.getElementById('confirm-ok').addEventListener('click', ()=>{
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmResolve) { confirmResolve(true); confirmResolve=null; }
+});
+document.getElementById('confirm-cancel').addEventListener('click', ()=>{
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmResolve) { confirmResolve(false); confirmResolve=null; }
+});
+
+// Save buttons
+document.getElementById('btn-emp-save').addEventListener('click', saveEmployee);
+document.getElementById('btn-proj-save').addEventListener('click', saveProject);
+document.getElementById('btn-cp-save').addEventListener('click', saveCP);
+document.getElementById('btn-lr-save').addEventListener('click', saveLR);
+
+// Add buttons
+document.getElementById('btn-add-employee').addEventListener('click', ()=>{ modalTrigger=document.getElementById('btn-add-employee'); openEmployeeModal(); });
+document.getElementById('btn-add-project').addEventListener('click', ()=>{ modalTrigger=document.getElementById('btn-add-project'); openProjectModal(); });
+document.getElementById('btn-add-cp').addEventListener('click', ()=>{ modalTrigger=document.getElementById('btn-add-cp'); openCPModal(); });
+document.getElementById('btn-add-lr').addEventListener('click', ()=>{ modalTrigger=document.getElementById('btn-add-lr'); openLRModal(); });
+
+// Filter: employees
+document.getElementById('ef-bu').addEventListener('change', e=>{ filters.empBu=e.target.value; pages.employees=1; renderEmployees(); });
+document.getElementById('ef-status').addEventListener('change', e=>{ filters.empStatus=e.target.value; pages.employees=1; renderEmployees(); });
+
+// Filter: projects
+document.getElementById('pf-status').addEventListener('change', e=>{ filters.projStatus=e.target.value; pages.projects=1; renderProjects(); });
+
+// Filter: career paths
+document.getElementById('cpf-bu').addEventListener('change', e=>{ filters.cpBu=e.target.value; pages.careerPaths=1; renderCareerPaths(); });
+
+// Filter: learning resources
+document.getElementById('lrf-skill').addEventListener('change', e=>{ filters.lrSkill=e.target.value; pages.learning=1; renderResources(); });
+document.getElementById('lrf-type').addEventListener('change', e=>{ filters.lrType=e.target.value; pages.learning=1; renderResources(); });
+
+// ============================================================
+// 8. BOOTSTRAP — load active tab on page ready
+// ============================================================
+document.addEventListener('DOMContentLoaded', ()=>{
+  loadEmployeesTab();
+});
+</script>
+</body>
+</html>
