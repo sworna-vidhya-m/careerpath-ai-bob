@@ -9,7 +9,7 @@ Each entity has four schema classes:
 
 import logging
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -441,3 +441,43 @@ class LearningEnrollmentRead(LearningEnrollmentBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+
+# ---------------------------------------------------------------------------
+# Analytics — Skill Gap Analysis
+# ---------------------------------------------------------------------------
+
+
+class RecommendedResourceRead(BaseModel):
+    """Minimal learning resource info for recommendations."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    resource_id: int
+    title: str
+    type: LearningResourceType
+    duration_hours: int
+
+
+class SkillGapItem(BaseModel):
+    """Individual skill gap with recommendation."""
+    
+    skill_id: int
+    skill_name: str
+    current_proficiency: int  # 0-5, 0 means not possessed
+    required_proficiency: int  # 1-5
+    gap: int
+    is_critical: bool
+    recommended_resources: List[RecommendedResourceRead]
+
+
+class SkillGapAnalysisRead(BaseModel):
+    """Complete skill gap analysis for an employee."""
+    
+    employee_id: int
+    employee_name: str
+    current_role: str
+    business_unit_id: int
+    skill_gaps: List[SkillGapItem]
+    total_gaps: int
+    critical_gaps: int
