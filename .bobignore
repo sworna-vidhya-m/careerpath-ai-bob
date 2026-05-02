@@ -1,0 +1,10 @@
+.env
+.env.*
+secrets/
+*.key
+*.pem
+config/credentials.json
+node_modules/
+dist/
+build/
+.next/
