@@ -138,3 +138,105 @@ def test_skill_gap_analysis_employee_with_no_career_paths(
     assert data["skill_gaps"] == []
 
 # Made with Bob
+
+
+
+# ---------------------------------------------------------------------------
+# Endpoint 2: GET /analytics/industry-trends/{business_unit_id}
+# ---------------------------------------------------------------------------
+
+
+def test_industry_trends_for_business_unit(client: TestClient) -> None:
+    """Test industry trends for a business unit with seeded data."""
+    # Arrange: Use business_unit_id=1 from seeded data
+    business_unit_id = 1
+    
+    # Act
+    response = client.get(f"/analytics/industry-trends/{business_unit_id}")
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert "business_unit_id" in data
+    assert "business_unit_name" in data
+    assert "trending_skills" in data
+    assert "total_skills" in data
+    assert "rising_count" in data
+    assert "stable_count" in data
+    assert "declining_count" in data
+    
+    # Verify data types and values
+    assert data["business_unit_id"] == business_unit_id
+    assert isinstance(data["business_unit_name"], str)
+    assert isinstance(data["trending_skills"], list)
+    assert isinstance(data["total_skills"], int)
+    assert isinstance(data["rising_count"], int)
+    assert isinstance(data["stable_count"], int)
+    assert isinstance(data["declining_count"], int)
+    
+    # Verify trend counts sum correctly
+    assert (
+        data["rising_count"] + data["stable_count"] + data["declining_count"]
+        == data["total_skills"]
+    )
+    
+    # Verify trending skills structure if any exist
+    if data["trending_skills"]:
+        skill_item = data["trending_skills"][0]
+        assert "skill_id" in skill_item
+        assert "skill_name" in skill_item
+        assert "category" in skill_item
+        assert "is_emerging" in skill_item
+        assert "importance" in skill_item
+        assert "trend" in skill_item
+        assert "employee_count" in skill_item
+        assert "avg_proficiency" in skill_item
+        
+        # Verify value ranges
+        assert 1 <= skill_item["importance"] <= 5
+        assert skill_item["trend"] in ["RISING", "STABLE", "DECLINING"]
+        assert skill_item["employee_count"] >= 0
+        assert 0.0 <= skill_item["avg_proficiency"] <= 5.0
+        assert isinstance(skill_item["is_emerging"], bool)
+
+
+def test_industry_trends_business_unit_not_found(client: TestClient) -> None:
+    """Test industry trends with non-existent business unit."""
+    # Arrange: Use non-existent business_unit_id
+    business_unit_id = 99999
+    
+    # Act
+    response = client.get(f"/analytics/industry-trends/{business_unit_id}")
+    
+    # Assert
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+    assert "message" in data["detail"]
+    assert "BusinessUnit" in data["detail"]["message"]
+
+
+def test_industry_trends_with_trend_filter_rising(client: TestClient) -> None:
+    """Test industry trends with RISING trend filter."""
+    # Arrange: Use business_unit_id=1 with trend_filter=RISING
+    business_unit_id = 1
+    
+    # Act
+    response = client.get(
+        f"/analytics/industry-trends/{business_unit_id}?trend_filter=RISING"
+    )
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify all returned skills have trend="RISING"
+    for skill_item in data["trending_skills"]:
+        assert skill_item["trend"] == "RISING"
+    
+    # Verify total_skills reflects the filtered count
+    assert data["total_skills"] == data["rising_count"]
+
+# Made with Bob

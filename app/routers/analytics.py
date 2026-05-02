@@ -14,25 +14,31 @@ registered and the smoke test can verify wiring.
 """
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.exceptions import NotFoundError, raise_http_from_app_exception
 from app.models import (
+    BusinessUnit,
     CareerPath,
     CareerPathSkillRequirement,
     Employee,
     EmployeeSkill,
+    IndustryStandardSkill,
     LearningResource,
     Skill,
+    SkillTrend,
 )
 from app.schemas import (
+    IndustryTrendsRead,
     RecommendedResourceRead,
     SkillGapAnalysisRead,
     SkillGapItem,
+    TrendingSkillItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -179,6 +185,140 @@ def get_skill_gap_analysis(
             skill_gaps=skill_gaps,
             total_gaps=len(skill_gaps),
             critical_gaps=critical_gaps
+        )
+        
+    except NotFoundError as exc:
+        raise_http_from_app_exception(exc)
+
+
+@router.get(
+    "/industry-trends/{business_unit_id}",
+    response_model=IndustryTrendsRead
+)
+def get_industry_trends(
+    business_unit_id: int,
+    trend_filter: Optional[SkillTrend] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+) -> IndustryTrendsRead:
+    """Get industry skill trends for a business unit.
+    
+    Args:
+        business_unit_id: Business unit primary key
+        trend_filter: Optional filter by RISING, STABLE, or DECLINING
+        limit: Max skills to return (default 20, max 100)
+        db: Database session
+        
+    Returns:
+        Industry trends with skill statistics
+        
+    Raises:
+        HTTPException: 404 if business unit not found
+    """
+    try:
+        # Step 1: Fetch business unit
+        business_unit = (
+            db.query(BusinessUnit)
+            .filter(BusinessUnit.id == business_unit_id)
+            .first()
+        )
+        if not business_unit:
+            raise NotFoundError(
+                f"BusinessUnit with id {business_unit_id} not found",
+                {"business_unit_id": business_unit_id}
+            )
+        
+        # Step 2: Query IndustryStandardSkill for this business unit
+        query = (
+            db.query(IndustryStandardSkill)
+            .filter(IndustryStandardSkill.business_unit_id == business_unit_id)
+        )
+        
+        # Step 3: Apply optional trend_filter
+        if trend_filter:
+            query = query.filter(IndustryStandardSkill.trend == trend_filter)
+        
+        industry_standards = query.all()
+        
+        # Step 4-6: Build trending skills with employee stats
+        trending_skills: List[TrendingSkillItem] = []
+        
+        for ind_std in industry_standards:
+            # Step 4: Join with Skill to get details
+            skill = db.query(Skill).filter(Skill.id == ind_std.skill_id).first()
+            if not skill:
+                continue
+            
+            # Step 5: Count employees in this BU who possess this skill
+            employee_count = (
+                db.query(func.count(EmployeeSkill.id))
+                .join(Employee, Employee.id == EmployeeSkill.employee_id)
+                .filter(
+                    Employee.business_unit_id == business_unit_id,
+                    EmployeeSkill.skill_id == ind_std.skill_id
+                )
+                .scalar()
+            ) or 0
+            
+            # Step 6: Calculate average proficiency for employees in this BU
+            avg_proficiency_result = (
+                db.query(func.avg(EmployeeSkill.proficiency))
+                .join(Employee, Employee.id == EmployeeSkill.employee_id)
+                .filter(
+                    Employee.business_unit_id == business_unit_id,
+                    EmployeeSkill.skill_id == ind_std.skill_id
+                )
+                .scalar()
+            )
+            avg_proficiency = (
+                float(avg_proficiency_result) if avg_proficiency_result else 0.0
+            )
+            
+            trending_skills.append(
+                TrendingSkillItem(
+                    skill_id=skill.id,
+                    skill_name=skill.name,
+                    category=skill.category,
+                    is_emerging=skill.is_emerging,
+                    importance=ind_std.importance,
+                    trend=ind_std.trend,
+                    employee_count=employee_count,
+                    avg_proficiency=round(avg_proficiency, 1)
+                )
+            )
+        
+        # Step 7: Sort by importance DESC, then by trend (RISING first)
+        trend_order = {SkillTrend.RISING: 0, SkillTrend.STABLE: 1,
+                       SkillTrend.DECLINING: 2}
+        trending_skills.sort(
+            key=lambda x: (-x.importance, trend_order.get(x.trend, 3))
+        )
+        trending_skills = trending_skills[:limit]
+        
+        # Step 8: Aggregate trend counts
+        rising_count = sum(
+            1 for std in industry_standards if std.trend == SkillTrend.RISING
+        )
+        stable_count = sum(
+            1 for std in industry_standards if std.trend == SkillTrend.STABLE
+        )
+        declining_count = sum(
+            1 for std in industry_standards if std.trend == SkillTrend.DECLINING
+        )
+        
+        logger.info(
+            "Industry trends retrieved for business_unit_id=%d, skills=%d",
+            business_unit_id, len(trending_skills)
+        )
+        
+        return IndustryTrendsRead(
+            business_unit_id=business_unit.id,
+            business_unit_name=business_unit.name,
+            trending_skills=trending_skills,
+            total_skills=len(industry_standards),
+            rising_count=rising_count,
+            stable_count=stable_count,
+            declining_count=declining_count
         )
         
     except NotFoundError as exc:

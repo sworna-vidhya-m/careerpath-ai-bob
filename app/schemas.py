@@ -481,3 +481,33 @@ class SkillGapAnalysisRead(BaseModel):
     skill_gaps: List[SkillGapItem]
     total_gaps: int
     critical_gaps: int
+
+
+# ---------------------------------------------------------------------------
+# Analytics — Industry Trends
+# ---------------------------------------------------------------------------
+
+
+class TrendingSkillItem(BaseModel):
+    """Industry trend data for a single skill."""
+    
+    skill_id: int
+    skill_name: str
+    category: SkillCategory
+    is_emerging: bool
+    importance: int  # 1-5
+    trend: SkillTrend
+    employee_count: int
+    avg_proficiency: float  # 0.0-5.0
+
+
+class IndustryTrendsRead(BaseModel):
+    """Industry skill trends for a business unit."""
+    
+    business_unit_id: int
+    business_unit_name: str
+    trending_skills: List[TrendingSkillItem]
+    total_skills: int
+    rising_count: int
+    stable_count: int
+    declining_count: int
