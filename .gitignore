@@ -7,3 +7,4 @@ data/*.db
 .vscode/
 .idea/
 *.egg-info/
+demo-script.md
