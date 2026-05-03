@@ -36,7 +36,10 @@ from app.models import (
 )
 from app.schemas import (
     BusinessUnitSkillBreakdown,
+    CareerRecommendationItem,
+    CareerRecommendationsRead,
     IndustryTrendsRead,
+    MissingSkillItem,
     RecommendedResourceRead,
     SkillGapAnalysisRead,
     SkillGapItem,
@@ -485,6 +488,196 @@ def get_skill_heatmap(
             heatmap_data=heatmap_items,
             total_skills=len(heatmap_items),
             total_employees_analyzed=len(total_employees_set)
+        )
+        
+    except NotFoundError as exc:
+        raise_http_from_app_exception(exc)
+
+
+
+@router.get(
+    "/career-recommendations/{employee_id}",
+    response_model=CareerRecommendationsRead
+)
+def get_career_recommendations(
+    employee_id: int,
+    include_cross_bu: bool = Query(False),
+    max_recommendations: int = Query(5, ge=1, le=20),
+    db: Session = Depends(get_db)
+) -> CareerRecommendationsRead:
+    """Get career path recommendations for an employee.
+    
+    Args:
+        employee_id: Employee primary key
+        include_cross_bu: Include career paths from other business units
+        max_recommendations: Maximum recommendations to return (default 5, max 20)
+        db: Database session
+        
+    Returns:
+        Career recommendations with readiness assessment
+        
+    Raises:
+        HTTPException: 404 if employee not found
+    """
+    try:
+        # Step 1: Fetch employee
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
+        if not employee:
+            raise NotFoundError(
+                f"Employee with id {employee_id} not found",
+                {"employee_id": employee_id}
+            )
+        
+        # Step 2: Build proficiency map for employee
+        employee_skills = (
+            db.query(EmployeeSkill)
+            .filter(EmployeeSkill.employee_id == employee_id)
+            .all()
+        )
+        proficiency_map: Dict[int, int] = {
+            es.skill_id: es.proficiency for es in employee_skills
+        }
+        
+        # Step 3: Query CareerPath where from_role matches employee's role
+        career_paths_query = (
+            db.query(CareerPath)
+            .filter(CareerPath.from_role == employee.role)
+        )
+        
+        # Filter by business unit if include_cross_bu is False
+        if not include_cross_bu:
+            career_paths_query = career_paths_query.filter(
+                CareerPath.business_unit_id == employee.business_unit_id
+            )
+        
+        career_paths = career_paths_query.all()
+        
+        # Step 4: For each career path, calculate metrics
+        recommendations: List[CareerRecommendationItem] = []
+        
+        for career_path in career_paths:
+            # Fetch all skill requirements for this path
+            requirements = (
+                db.query(CareerPathSkillRequirement)
+                .filter(
+                    CareerPathSkillRequirement.career_path_id == career_path.id
+                )
+                .all()
+            )
+            
+            if not requirements:
+                continue  # Skip paths with no requirements
+            
+            required_skills = len(requirements)
+            possessed_skills = 0
+            missing_skills_list: List[MissingSkillItem] = []
+            estimated_hours = 0
+            
+            # Compare requirements with employee's skills
+            for req in requirements:
+                current_prof = proficiency_map.get(req.skill_id, 0)
+                
+                if current_prof >= req.min_proficiency:
+                    possessed_skills += 1
+                else:
+                    # This is a missing skill
+                    skill = (
+                        db.query(Skill)
+                        .filter(Skill.id == req.skill_id)
+                        .first()
+                    )
+                    
+                    if skill:
+                        missing_skills_list.append(
+                            MissingSkillItem(
+                                skill_id=req.skill_id,
+                                skill_name=skill.name,
+                                required_proficiency=req.min_proficiency,
+                                current_proficiency=current_prof
+                            )
+                        )
+                        
+                        # Sum learning hours for this skill
+                        resources = (
+                            db.query(LearningResource)
+                            .filter(LearningResource.skill_id == req.skill_id)
+                            .all()
+                        )
+                        if resources:
+                            # Take minimum duration as estimate
+                            estimated_hours += min(
+                                r.duration_hours for r in resources
+                            )
+            
+            # Calculate match_score
+            match_score = (
+                possessed_skills / required_skills if required_skills > 0 else 0.0
+            )
+            
+            # Determine readiness
+            if match_score > 0.8:
+                readiness = "HIGH"
+            elif match_score >= 0.5:
+                readiness = "MEDIUM"
+            else:
+                readiness = "LOW"
+            
+            skill_gaps = required_skills - possessed_skills
+            
+            # Step 6: Infer to_band by querying employees in to_role
+            to_band = None
+            employees_in_role = (
+                db.query(Employee.band, func.count(Employee.id))
+                .filter(Employee.role == career_path.to_role)
+                .group_by(Employee.band)
+                .order_by(func.count(Employee.id).desc())
+                .first()
+            )
+            if employees_in_role:
+                to_band = employees_in_role[0]
+            
+            # Get business unit name
+            business_unit = (
+                db.query(BusinessUnit)
+                .filter(BusinessUnit.id == career_path.business_unit_id)
+                .first()
+            )
+            business_unit_name = business_unit.name if business_unit else "Unknown"
+            
+            recommendations.append(
+                CareerRecommendationItem(
+                    career_path_id=career_path.id,
+                    to_role=career_path.to_role,
+                    to_band=to_band,
+                    business_unit_id=career_path.business_unit_id,
+                    business_unit_name=business_unit_name,
+                    match_score=round(match_score, 2),
+                    readiness=readiness,
+                    required_skills=required_skills,
+                    possessed_skills=possessed_skills,
+                    skill_gaps=skill_gaps,
+                    missing_skills=missing_skills_list,
+                    estimated_learning_hours=estimated_hours
+                )
+            )
+        
+        # Step 5: Sort by match_score DESC, limit to max_recommendations
+        recommendations.sort(key=lambda x: -x.match_score)
+        recommendations = recommendations[:max_recommendations]
+        
+        logger.info(
+            "Career recommendations retrieved for employee_id=%d, count=%d",
+            employee_id, len(recommendations)
+        )
+        
+        return CareerRecommendationsRead(
+            employee_id=employee.id,
+            employee_name=employee.name,
+            current_role=employee.role,
+            current_band=employee.band,
+            business_unit_id=employee.business_unit_id,
+            recommendations=recommendations,
+            total_recommendations=len(recommendations)
         )
         
     except NotFoundError as exc:

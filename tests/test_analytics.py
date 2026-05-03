@@ -362,3 +362,128 @@ def test_skill_heatmap_with_all_filters(client: TestClient) -> None:
             assert bu["business_unit_id"] == business_unit_id
 
 # Made with Bob
+
+
+
+# ---------------------------------------------------------------------------
+# Endpoint 4: GET /analytics/career-recommendations/{employee_id}
+# ---------------------------------------------------------------------------
+
+
+def test_career_recommendations_for_employee(client: TestClient) -> None:
+    """Test career recommendations for employee with known skill gaps."""
+    # Arrange: Use employee_id=20 (Divya Shetty has known skill gaps from Task 4)
+    employee_id = 20
+    
+    # Act
+    response = client.get(f"/analytics/career-recommendations/{employee_id}")
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert "employee_id" in data
+    assert "employee_name" in data
+    assert "current_role" in data
+    assert "current_band" in data
+    assert "business_unit_id" in data
+    assert "recommendations" in data
+    assert "total_recommendations" in data
+    
+    # Verify data types and values
+    assert data["employee_id"] == employee_id
+    assert isinstance(data["employee_name"], str)
+    assert isinstance(data["current_role"], str)
+    assert isinstance(data["current_band"], str)
+    assert isinstance(data["business_unit_id"], int)
+    assert isinstance(data["recommendations"], list)
+    assert isinstance(data["total_recommendations"], int)
+    assert data["total_recommendations"] >= 0
+    assert data["total_recommendations"] == len(data["recommendations"])
+    
+    # Verify recommendation items structure if any exist
+    if data["recommendations"]:
+        rec = data["recommendations"][0]
+        assert "career_path_id" in rec
+        assert "to_role" in rec
+        assert "to_band" in rec
+        assert "business_unit_id" in rec
+        assert "business_unit_name" in rec
+        assert "match_score" in rec
+        assert "readiness" in rec
+        assert "required_skills" in rec
+        assert "possessed_skills" in rec
+        assert "skill_gaps" in rec
+        assert "missing_skills" in rec
+        assert "estimated_learning_hours" in rec
+        
+        # Verify value ranges
+        assert 0.0 <= rec["match_score"] <= 1.0
+        assert rec["readiness"] in ["HIGH", "MEDIUM", "LOW"]
+        assert rec["required_skills"] >= 0
+        assert rec["possessed_skills"] >= 0
+        assert rec["skill_gaps"] >= 0
+        assert rec["skill_gaps"] == rec["required_skills"] - rec["possessed_skills"]
+        assert isinstance(rec["missing_skills"], list)
+        assert rec["estimated_learning_hours"] >= 0
+        
+        # Verify missing skills structure if any exist
+        if rec["missing_skills"]:
+            missing = rec["missing_skills"][0]
+            assert "skill_id" in missing
+            assert "skill_name" in missing
+            assert "required_proficiency" in missing
+            assert "current_proficiency" in missing
+            assert 1 <= missing["required_proficiency"] <= 5
+            assert 0 <= missing["current_proficiency"] <= 5
+
+
+def test_career_recommendations_employee_not_found(client: TestClient) -> None:
+    """Test career recommendations with non-existent employee."""
+    # Arrange: Use non-existent employee_id
+    employee_id = 99999
+    
+    # Act
+    response = client.get(f"/analytics/career-recommendations/{employee_id}")
+    
+    # Assert
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+    assert "message" in data["detail"]
+    assert "Employee" in data["detail"]["message"]
+
+
+def test_career_recommendations_include_cross_bu(client: TestClient) -> None:
+    """Test career recommendations with include_cross_bu=true."""
+    # Arrange: Use employee_id=20 with include_cross_bu=true
+    employee_id = 20
+    
+    # Act
+    response = client.get(
+        f"/analytics/career-recommendations/{employee_id}?include_cross_bu=true"
+    )
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert "recommendations" in data
+    assert isinstance(data["recommendations"], list)
+    
+    # If recommendations exist, verify they may include different business units
+    if data["recommendations"]:
+        # Get employee's business unit
+        employee_bu_id = data["business_unit_id"]
+        
+        # Check if any recommendations are from different business units
+        # (This is an edge case test - we're just verifying the parameter works)
+        for rec in data["recommendations"]:
+            assert "business_unit_id" in rec
+            assert isinstance(rec["business_unit_id"], int)
+            # The recommendation may or may not be from a different BU
+            # We're just testing that the endpoint accepts the parameter
+
+# Made with Bob

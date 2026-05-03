@@ -556,3 +556,46 @@ class SkillHeatmapRead(BaseModel):
     heatmap_data: List[SkillHeatmapItem]
     total_skills: int
     total_employees_analyzed: int
+
+
+# ---------------------------------------------------------------------------
+# Analytics — Career Recommendations
+# ---------------------------------------------------------------------------
+
+
+class MissingSkillItem(BaseModel):
+    """Skill gap detail for career recommendation."""
+    
+    skill_id: int
+    skill_name: str
+    required_proficiency: int
+    current_proficiency: int
+
+
+class CareerRecommendationItem(BaseModel):
+    """Single career path recommendation with readiness assessment."""
+    
+    career_path_id: int
+    to_role: str
+    to_band: Optional[str]  # inferred from employees in that role
+    business_unit_id: int
+    business_unit_name: str
+    match_score: float  # 0.0-1.0
+    readiness: str  # HIGH, MEDIUM, LOW
+    required_skills: int
+    possessed_skills: int
+    skill_gaps: int
+    missing_skills: List[MissingSkillItem]
+    estimated_learning_hours: int
+
+
+class CareerRecommendationsRead(BaseModel):
+    """Career path recommendations for an employee."""
+    
+    employee_id: int
+    employee_name: str
+    current_role: str
+    current_band: str
+    business_unit_id: int
+    recommendations: List[CareerRecommendationItem]
+    total_recommendations: int
