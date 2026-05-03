@@ -599,3 +599,57 @@ class CareerRecommendationsRead(BaseModel):
     business_unit_id: int
     recommendations: List[CareerRecommendationItem]
     total_recommendations: int
+
+
+# ---------------------------------------------------------------------------
+# Analytics — Bench Learning Trigger
+# ---------------------------------------------------------------------------
+
+
+class BenchLearningTriggerRequest(BaseModel):
+    """Request to trigger learning enrollments for bench employees."""
+    
+    business_unit_id: Optional[int] = None
+    skill_ids: Optional[List[int]] = None
+    max_enrollments_per_employee: int = Field(default=3, ge=1, le=10)
+    dry_run: bool = False
+
+
+class BenchLearningFilters(BaseModel):
+    """Filters applied to bench learning trigger."""
+    
+    business_unit_id: Optional[int] = None
+    skill_ids: Optional[List[int]] = None
+
+
+class BenchEnrollmentItem(BaseModel):
+    """Single enrollment created for a bench employee."""
+    
+    employee_id: int
+    employee_name: str
+    resource_id: int
+    resource_title: str
+    skill_id: int
+    skill_name: str
+    enrollment_id: Optional[int]  # null if dry_run=true
+    reason: str
+
+
+class BenchLearningSummary(BaseModel):
+    """Summary statistics for bench learning trigger."""
+    
+    total_hours_allocated: int
+    skills_targeted: int
+    avg_enrollments_per_employee: float
+
+
+class BenchLearningTriggerRead(BaseModel):
+    """Result of triggering bench learning enrollments."""
+    
+    triggered_at: datetime
+    dry_run: bool
+    filters: BenchLearningFilters
+    bench_employees_found: int
+    enrollments_created: int
+    enrollments: List[BenchEnrollmentItem]
+    summary: BenchLearningSummary

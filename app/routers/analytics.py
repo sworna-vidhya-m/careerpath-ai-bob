@@ -14,6 +14,7 @@ registered and the smoke test can verify wiring.
 """
 
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -28,13 +29,22 @@ from app.models import (
     CareerPathSkillRequirement,
     Employee,
     EmployeeSkill,
+    EmployeeStatus,
+    EnrollmentStatus,
     IndustryStandardSkill,
+    LearningEnrollment,
     LearningResource,
+    LearningResourceType,
     Skill,
     SkillCategory,
     SkillTrend,
 )
 from app.schemas import (
+    BenchEnrollmentItem,
+    BenchLearningFilters,
+    BenchLearningSummary,
+    BenchLearningTriggerRead,
+    BenchLearningTriggerRequest,
     BusinessUnitSkillBreakdown,
     CareerRecommendationItem,
     CareerRecommendationsRead,
@@ -678,6 +688,256 @@ def get_career_recommendations(
             business_unit_id=employee.business_unit_id,
             recommendations=recommendations,
             total_recommendations=len(recommendations)
+        )
+        
+    except NotFoundError as exc:
+        raise_http_from_app_exception(exc)
+
+
+
+@router.post("/trigger-bench-learning", response_model=BenchLearningTriggerRead)
+def trigger_bench_learning(
+    request: BenchLearningTriggerRequest,
+    db: Session = Depends(get_db)
+) -> BenchLearningTriggerRead:
+    """Trigger learning enrollments for bench employees.
+    
+    Args:
+        request: Trigger configuration with filters and dry_run flag
+        db: Database session
+        
+    Returns:
+        Summary of enrollments created or simulated
+        
+    Raises:
+        HTTPException: 404 if business_unit_id provided but doesn't exist
+    """
+    try:
+        triggered_at = datetime.utcnow()
+        
+        # Step 1: Query employees with current_status=BENCH
+        bench_query = db.query(Employee).filter(
+            Employee.current_status == EmployeeStatus.BENCH
+        )
+        
+        # Step 2: If business_unit_id provided, filter to that BU
+        if request.business_unit_id is not None:
+            # Verify business unit exists
+            business_unit = (
+                db.query(BusinessUnit)
+                .filter(BusinessUnit.id == request.business_unit_id)
+                .first()
+            )
+            if not business_unit:
+                raise NotFoundError(
+                    f"BusinessUnit with id {request.business_unit_id} not found",
+                    {"business_unit_id": request.business_unit_id}
+                )
+            bench_query = bench_query.filter(
+                Employee.business_unit_id == request.business_unit_id
+            )
+        
+        bench_employees = bench_query.all()
+        bench_employees_found = len(bench_employees)
+        
+        # Build enrollment list
+        enrollments: List[BenchEnrollmentItem] = []
+        total_hours = 0
+        skills_targeted_set = set()
+        
+        # Step 3: For each bench employee, identify skill gaps
+        for employee in bench_employees:
+            # Get current skills
+            employee_skills = (
+                db.query(EmployeeSkill)
+                .filter(EmployeeSkill.employee_id == employee.id)
+                .all()
+            )
+            proficiency_map: Dict[int, int] = {
+                es.skill_id: es.proficiency for es in employee_skills
+            }
+            
+            # Find career paths from employee's role
+            career_paths = (
+                db.query(CareerPath)
+                .filter(
+                    CareerPath.from_role == employee.role,
+                    CareerPath.business_unit_id == employee.business_unit_id
+                )
+                .all()
+            )
+            
+            # If no career paths defined for this role, skip employee
+            if not career_paths:
+                continue
+            
+            # Collect skill gaps with importance scores
+            skill_gaps: List[Dict] = []
+            
+            for career_path in career_paths:
+                requirements = (
+                    db.query(CareerPathSkillRequirement)
+                    .filter(
+                        CareerPathSkillRequirement.career_path_id == career_path.id
+                    )
+                    .all()
+                )
+                
+                for req in requirements:
+                    current_prof = proficiency_map.get(req.skill_id, 0)
+                    gap = req.min_proficiency - current_prof
+                    
+                    if gap > 0:
+                        # If skill_ids filter provided, only include those skills
+                        if (request.skill_ids is not None and 
+                            req.skill_id not in request.skill_ids):
+                            continue
+                        
+                        # Get skill details
+                        skill = (
+                            db.query(Skill)
+                            .filter(Skill.id == req.skill_id)
+                            .first()
+                        )
+                        
+                        if not skill:
+                            continue
+                        
+                        # Get importance from IndustryStandardSkill
+                        importance_record = (
+                            db.query(IndustryStandardSkill)
+                            .filter(
+                                IndustryStandardSkill.skill_id == req.skill_id,
+                                IndustryStandardSkill.business_unit_id == 
+                                    employee.business_unit_id
+                            )
+                            .first()
+                        )
+                        importance = (
+                            importance_record.importance 
+                            if importance_record else 3
+                        )
+                        
+                        # Check if already in gaps list
+                        existing_gap = next(
+                            (g for g in skill_gaps if g["skill_id"] == req.skill_id),
+                            None
+                        )
+                        
+                        if existing_gap:
+                            # Update if this requirement is higher
+                            if gap > existing_gap["gap"]:
+                                existing_gap["gap"] = gap
+                                existing_gap["required_proficiency"] = (
+                                    req.min_proficiency
+                                )
+                        else:
+                            skill_gaps.append({
+                                "skill_id": req.skill_id,
+                                "skill_name": skill.name,
+                                "gap": gap,
+                                "current_proficiency": current_prof,
+                                "required_proficiency": req.min_proficiency,
+                                "importance": importance,
+                                "career_path_to_role": career_path.to_role
+                            })
+            
+            # Step 4-5: Sort by importance DESC, then by gap DESC
+            skill_gaps.sort(key=lambda x: (-x["importance"], -x["gap"]))
+            
+            # Limit to max_enrollments_per_employee
+            skill_gaps = skill_gaps[:request.max_enrollments_per_employee]
+            
+            # Step 4: For each skill gap, find best LearningResource
+            for gap_info in skill_gaps:
+                # Find resources for this skill
+                resources = (
+                    db.query(LearningResource)
+                    .filter(LearningResource.skill_id == gap_info["skill_id"])
+                    .order_by(
+                        # Prefer COURSE type, then shortest duration
+                        LearningResource.type == LearningResourceType.COURSE,
+                        LearningResource.duration_hours
+                    )
+                    .all()
+                )
+                
+                # If no resources available, skip this gap
+                if not resources:
+                    continue
+                
+                # Take the best resource (first after sorting)
+                best_resource = resources[0]
+                
+                # Step 6: Create enrollment (or simulate if dry_run)
+                enrollment_id = None
+                if not request.dry_run:
+                    enrollment = LearningEnrollment(
+                        employee_id=employee.id,
+                        resource_id=best_resource.id,
+                        enrolled_at=triggered_at,
+                        status=EnrollmentStatus.ENROLLED
+                    )
+                    db.add(enrollment)
+                    db.flush()  # Get the ID without committing
+                    enrollment_id = enrollment.id
+                
+                # Add to enrollments list
+                enrollments.append(
+                    BenchEnrollmentItem(
+                        employee_id=employee.id,
+                        employee_name=employee.name,
+                        resource_id=best_resource.id,
+                        resource_title=best_resource.title,
+                        skill_id=gap_info["skill_id"],
+                        skill_name=gap_info["skill_name"],
+                        enrollment_id=enrollment_id,
+                        reason=(
+                            f"Skill gap for career path to "
+                            f"{gap_info['career_path_to_role']}"
+                        )
+                    )
+                )
+                
+                # Update summary stats
+                total_hours += best_resource.duration_hours
+                skills_targeted_set.add(gap_info["skill_id"])
+        
+        # Step 6: Commit if not dry_run
+        if not request.dry_run:
+            db.commit()
+        
+        # Step 7: Calculate summary statistics
+        enrollments_created = len(enrollments)
+        avg_enrollments = (
+            enrollments_created / bench_employees_found 
+            if bench_employees_found > 0 else 0.0
+        )
+        
+        summary = BenchLearningSummary(
+            total_hours_allocated=total_hours,
+            skills_targeted=len(skills_targeted_set),
+            avg_enrollments_per_employee=round(avg_enrollments, 1)
+        )
+        
+        logger.info(
+            "Bench learning trigger completed: dry_run=%s, bench_employees=%d, "
+            "enrollments=%d",
+            request.dry_run, bench_employees_found, enrollments_created
+        )
+        
+        # Step 8: Return detailed enrollment list with reasons
+        return BenchLearningTriggerRead(
+            triggered_at=triggered_at,
+            dry_run=request.dry_run,
+            filters=BenchLearningFilters(
+                business_unit_id=request.business_unit_id,
+                skill_ids=request.skill_ids
+            ),
+            bench_employees_found=bench_employees_found,
+            enrollments_created=enrollments_created,
+            enrollments=enrollments,
+            summary=summary
         )
         
     except NotFoundError as exc:

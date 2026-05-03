@@ -487,3 +487,190 @@ def test_career_recommendations_include_cross_bu(client: TestClient) -> None:
             # We're just testing that the endpoint accepts the parameter
 
 # Made with Bob
+
+
+
+# ---------------------------------------------------------------------------
+# Endpoint 5: POST /analytics/trigger-bench-learning
+# ---------------------------------------------------------------------------
+
+
+def test_trigger_bench_learning_dry_run(client: TestClient) -> None:
+    """Test bench learning trigger with dry_run=true (happy path)."""
+    # Arrange: Use existing seeded bench employees (seeder creates 6 BENCH employees)
+    # Get a valid business unit with bench employees
+    bu_response = client.get("/business-units/?limit=1")
+    assert bu_response.status_code == 200
+    business_unit_id = bu_response.json()[0]["id"]
+    
+    # Arrange: Trigger request with dry_run=true
+    trigger_payload = {
+        "business_unit_id": None,  # Use all business units to find bench employees
+        "skill_ids": None,
+        "max_enrollments_per_employee": 3,
+        "dry_run": True
+    }
+    
+    # Act
+    response = client.post("/analytics/trigger-bench-learning", json=trigger_payload)
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert "triggered_at" in data
+    assert "dry_run" in data
+    assert "filters" in data
+    assert "bench_employees_found" in data
+    assert "enrollments_created" in data
+    assert "enrollments" in data
+    assert "summary" in data
+    
+    # Verify dry_run flag
+    assert data["dry_run"] is True
+    
+    # Verify bench employees found (seeder creates 6 BENCH employees)
+    assert data["bench_employees_found"] >= 1
+    
+    # Verify all enrollment_id values are None (dry_run mode)
+    for enrollment in data["enrollments"]:
+        assert enrollment["enrollment_id"] is None
+        assert "employee_id" in enrollment
+        assert "employee_name" in enrollment
+        assert "resource_id" in enrollment
+        assert "resource_title" in enrollment
+        assert "skill_id" in enrollment
+        assert "skill_name" in enrollment
+        assert "reason" in enrollment
+    
+    # Verify summary structure
+    summary = data["summary"]
+    assert "total_hours_allocated" in summary
+    assert "skills_targeted" in summary
+    assert "avg_enrollments_per_employee" in summary
+    assert isinstance(summary["total_hours_allocated"], int)
+    assert isinstance(summary["skills_targeted"], int)
+    assert isinstance(summary["avg_enrollments_per_employee"], float)
+
+
+def test_trigger_bench_learning_invalid_business_unit(client: TestClient) -> None:
+    """Test bench learning trigger with non-existent business unit (error case)."""
+    # Arrange: Use non-existent business_unit_id
+    trigger_payload = {
+        "business_unit_id": 99999,
+        "skill_ids": None,
+        "max_enrollments_per_employee": 3,
+        "dry_run": True
+    }
+    
+    # Act
+    response = client.post("/analytics/trigger-bench-learning", json=trigger_payload)
+    
+    # Assert
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+    assert "message" in data["detail"]
+    assert "BusinessUnit" in data["detail"]["message"]
+
+
+def test_trigger_bench_learning_with_skill_filter(client: TestClient) -> None:
+    """Test bench learning trigger with skill_ids filter (edge case)."""
+    # Arrange: Get valid skill IDs
+    skills_response = client.get("/skills/?limit=3")
+    assert skills_response.status_code == 200
+    skills = skills_response.json()
+    
+    if len(skills) < 2:
+        # Skip test if not enough skills in database
+        return
+    
+    skill_ids = [skills[0]["id"], skills[1]["id"]]
+    
+    # Trigger with skill filter
+    trigger_payload = {
+        "business_unit_id": None,
+        "skill_ids": skill_ids,
+        "max_enrollments_per_employee": 3,
+        "dry_run": True
+    }
+    
+    # Act
+    response = client.post("/analytics/trigger-bench-learning", json=trigger_payload)
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify filters are reflected
+    assert data["filters"]["skill_ids"] == skill_ids
+    
+    # Verify all enrollments target only the specified skills
+    for enrollment in data["enrollments"]:
+        assert enrollment["skill_id"] in skill_ids
+    
+    # Verify enrollments_created constraint
+    if data["bench_employees_found"] > 0:
+        max_possible = (
+            data["bench_employees_found"] * 
+            trigger_payload["max_enrollments_per_employee"]
+        )
+        assert data["enrollments_created"] <= max_possible
+
+
+def test_trigger_bench_learning_creates_enrollments(client: TestClient) -> None:
+    """Test bench learning trigger with dry_run=false (integration test)."""
+    # Arrange: Use existing seeded bench employees
+    # Get count of enrollments before trigger
+    enrollments_before_response = client.get("/enrollments/?limit=1000")
+    assert enrollments_before_response.status_code == 200
+    enrollments_before_count = len(enrollments_before_response.json())
+    
+    # Get existing bench employees to verify later
+    bench_employees_response = client.get("/employees/?status=BENCH&limit=100")
+    assert bench_employees_response.status_code == 200
+    bench_employees = bench_employees_response.json()
+    
+    # Skip test if no bench employees exist
+    if len(bench_employees) == 0:
+        return
+    
+    # Trigger with dry_run=false, limit to 1 enrollment per employee
+    trigger_payload = {
+        "business_unit_id": None,
+        "skill_ids": None,
+        "max_enrollments_per_employee": 1,
+        "dry_run": False
+    }
+    
+    # Act
+    response = client.post("/analytics/trigger-bench-learning", json=trigger_payload)
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify dry_run is false
+    assert data["dry_run"] is False
+    
+    # If enrollments were created, verify enrollment_id values are NOT None
+    if data["enrollments_created"] > 0:
+        for enrollment in data["enrollments"]:
+            assert enrollment["enrollment_id"] is not None
+            assert isinstance(enrollment["enrollment_id"], int)
+        
+        # Verify enrollments were actually created in database
+        enrollments_after_response = client.get("/enrollments/?limit=1000")
+        assert enrollments_after_response.status_code == 200
+        enrollments_after = enrollments_after_response.json()
+        enrollments_after_count = len(enrollments_after)
+        
+        # Should have more enrollments now
+        assert enrollments_after_count > enrollments_before_count
+        
+        # Verify the new enrollments count matches
+        new_enrollments_count = enrollments_after_count - enrollments_before_count
+        assert new_enrollments_count == data["enrollments_created"]
+
+# Made with Bob
