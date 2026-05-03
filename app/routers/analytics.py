@@ -31,13 +31,18 @@ from app.models import (
     IndustryStandardSkill,
     LearningResource,
     Skill,
+    SkillCategory,
     SkillTrend,
 )
 from app.schemas import (
+    BusinessUnitSkillBreakdown,
     IndustryTrendsRead,
     RecommendedResourceRead,
     SkillGapAnalysisRead,
     SkillGapItem,
+    SkillHeatmapFilters,
+    SkillHeatmapItem,
+    SkillHeatmapRead,
     TrendingSkillItem,
 )
 
@@ -319,6 +324,167 @@ def get_industry_trends(
             rising_count=rising_count,
             stable_count=stable_count,
             declining_count=declining_count
+        )
+        
+    except NotFoundError as exc:
+        raise_http_from_app_exception(exc)
+
+
+@router.get("/skill-heatmap", response_model=SkillHeatmapRead)
+def get_skill_heatmap(
+    business_unit_id: Optional[int] = Query(None),
+    skill_category: Optional[SkillCategory] = Query(None),
+    min_importance: Optional[int] = Query(None, ge=1, le=5),
+    db: Session = Depends(get_db)
+) -> SkillHeatmapRead:
+    """Get skill heatmap across organization or filtered subset.
+    
+    Args:
+        business_unit_id: Optional filter by business unit
+        skill_category: Optional filter by TECHNICAL, DOMAIN, or SOFT
+        min_importance: Optional minimum importance threshold (1-5)
+        db: Database session
+        
+    Returns:
+        Skill heatmap with proficiency distribution and business unit breakdown
+    """
+    try:
+        # Step 1: Build base query for Skills
+        skills_query = db.query(Skill)
+        
+        # Apply skill_category filter if provided
+        if skill_category:
+            skills_query = skills_query.filter(Skill.category == skill_category)
+        
+        # Step 2: If min_importance provided, join with IndustryStandardSkill
+        skill_ids_with_importance = None
+        if min_importance is not None:
+            importance_subquery = (
+                db.query(IndustryStandardSkill.skill_id)
+                .filter(IndustryStandardSkill.importance >= min_importance)
+                .distinct()
+            )
+            skill_ids_with_importance = [row[0] for row in importance_subquery.all()]
+            if skill_ids_with_importance:
+                skills_query = skills_query.filter(
+                    Skill.id.in_(skill_ids_with_importance)
+                )
+            else:
+                # No skills meet importance threshold
+                return SkillHeatmapRead(
+                    filters=SkillHeatmapFilters(
+                        business_unit_id=business_unit_id,
+                        skill_category=skill_category,
+                        min_importance=min_importance
+                    ),
+                    heatmap_data=[],
+                    total_skills=0,
+                    total_employees_analyzed=0
+                )
+        
+        skills = skills_query.all()
+        
+        # Step 3-6: For each skill, calculate metrics
+        heatmap_items: List[SkillHeatmapItem] = []
+        total_employees_set = set()
+        
+        for skill in skills:
+            # Query EmployeeSkill records for this skill
+            emp_skill_query = (
+                db.query(EmployeeSkill, Employee)
+                .join(Employee, Employee.id == EmployeeSkill.employee_id)
+                .filter(EmployeeSkill.skill_id == skill.id)
+            )
+            
+            # Step 4: Apply business_unit_id filter if provided
+            if business_unit_id is not None:
+                emp_skill_query = emp_skill_query.filter(
+                    Employee.business_unit_id == business_unit_id
+                )
+            
+            emp_skills = emp_skill_query.all()
+            
+            if not emp_skills:
+                continue  # Skip skills with no employees
+            
+            # Step 5: Calculate metrics
+            total_employees = len(emp_skills)
+            proficiency_dist: Dict[str, int] = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+            total_prof = 0
+            certified_count = 0
+            
+            for emp_skill, employee in emp_skills:
+                total_employees_set.add(employee.id)
+                prof_str = str(emp_skill.proficiency)
+                proficiency_dist[prof_str] = proficiency_dist.get(prof_str, 0) + 1
+                total_prof += emp_skill.proficiency
+                if emp_skill.certified:
+                    certified_count += 1
+            
+            avg_proficiency = round(total_prof / total_employees, 1)
+            
+            # Step 6: Group by business unit for breakdown
+            bu_breakdown_dict: Dict[int, Dict] = {}
+            for emp_skill, employee in emp_skills:
+                bu_id = employee.business_unit_id
+                if bu_id not in bu_breakdown_dict:
+                    bu_breakdown_dict[bu_id] = {
+                        "count": 0,
+                        "total_prof": 0,
+                        "bu_name": None
+                    }
+                bu_breakdown_dict[bu_id]["count"] += 1
+                bu_breakdown_dict[bu_id]["total_prof"] += emp_skill.proficiency
+            
+            # Fetch business unit names and build breakdown list
+            business_units: List[BusinessUnitSkillBreakdown] = []
+            for bu_id, data in bu_breakdown_dict.items():
+                bu = db.query(BusinessUnit).filter(BusinessUnit.id == bu_id).first()
+                if bu:
+                    business_units.append(
+                        BusinessUnitSkillBreakdown(
+                            business_unit_id=bu.id,
+                            business_unit_name=bu.name,
+                            employee_count=data["count"],
+                            avg_proficiency=round(
+                                data["total_prof"] / data["count"], 1
+                            )
+                        )
+                    )
+            
+            heatmap_items.append(
+                SkillHeatmapItem(
+                    skill_id=skill.id,
+                    skill_name=skill.name,
+                    category=skill.category,
+                    is_emerging=skill.is_emerging,
+                    total_employees=total_employees,
+                    proficiency_distribution=proficiency_dist,
+                    avg_proficiency=avg_proficiency,
+                    certified_count=certified_count,
+                    business_units=business_units
+                )
+            )
+        
+        # Step 7: Sort by total_employees DESC, then by avg_proficiency DESC
+        heatmap_items.sort(
+            key=lambda x: (-x.total_employees, -x.avg_proficiency)
+        )
+        
+        logger.info(
+            "Skill heatmap retrieved, skills=%d, employees=%d",
+            len(heatmap_items), len(total_employees_set)
+        )
+        
+        return SkillHeatmapRead(
+            filters=SkillHeatmapFilters(
+                business_unit_id=business_unit_id,
+                skill_category=skill_category,
+                min_importance=min_importance
+            ),
+            heatmap_data=heatmap_items,
+            total_skills=len(heatmap_items),
+            total_employees_analyzed=len(total_employees_set)
         )
         
     except NotFoundError as exc:

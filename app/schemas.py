@@ -9,7 +9,7 @@ Each entity has four schema classes:
 
 import logging
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -511,3 +511,48 @@ class IndustryTrendsRead(BaseModel):
     rising_count: int
     stable_count: int
     declining_count: int
+
+
+# ---------------------------------------------------------------------------
+# Analytics — Skill Heatmap
+# ---------------------------------------------------------------------------
+
+
+class BusinessUnitSkillBreakdown(BaseModel):
+    """Skill metrics for a specific business unit."""
+    
+    business_unit_id: int
+    business_unit_name: str
+    employee_count: int
+    avg_proficiency: float
+
+
+class SkillHeatmapItem(BaseModel):
+    """Heatmap data for a single skill across the organization."""
+    
+    skill_id: int
+    skill_name: str
+    category: SkillCategory
+    is_emerging: bool
+    total_employees: int
+    proficiency_distribution: Dict[str, int]  # "1": count, "2": count, etc.
+    avg_proficiency: float
+    certified_count: int
+    business_units: List[BusinessUnitSkillBreakdown]
+
+
+class SkillHeatmapFilters(BaseModel):
+    """Applied filters for the heatmap query."""
+    
+    business_unit_id: Optional[int] = None
+    skill_category: Optional[SkillCategory] = None
+    min_importance: Optional[int] = None
+
+
+class SkillHeatmapRead(BaseModel):
+    """Complete skill heatmap across organization or filtered subset."""
+    
+    filters: SkillHeatmapFilters
+    heatmap_data: List[SkillHeatmapItem]
+    total_skills: int
+    total_employees_analyzed: int

@@ -240,3 +240,125 @@ def test_industry_trends_with_trend_filter_rising(client: TestClient) -> None:
     assert data["total_skills"] == data["rising_count"]
 
 # Made with Bob
+
+
+# ---------------------------------------------------------------------------
+# Endpoint 3: GET /analytics/skill-heatmap
+# ---------------------------------------------------------------------------
+
+
+def test_skill_heatmap_no_filters(client: TestClient) -> None:
+    """Test skill heatmap with no filters (happy path)."""
+    # Act
+    response = client.get("/analytics/skill-heatmap")
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert "filters" in data
+    assert "heatmap_data" in data
+    assert "total_skills" in data
+    assert "total_employees_analyzed" in data
+    
+    # Verify filters structure
+    filters = data["filters"]
+    assert "business_unit_id" in filters
+    assert "skill_category" in filters
+    assert "min_importance" in filters
+    assert filters["business_unit_id"] is None
+    assert filters["skill_category"] is None
+    assert filters["min_importance"] is None
+    
+    # Verify data types
+    assert isinstance(data["heatmap_data"], list)
+    assert isinstance(data["total_skills"], int)
+    assert isinstance(data["total_employees_analyzed"], int)
+    assert data["total_skills"] >= 0
+    assert data["total_employees_analyzed"] >= 0
+    
+    # Verify heatmap items structure if any exist
+    if data["heatmap_data"]:
+        item = data["heatmap_data"][0]
+        assert "skill_id" in item
+        assert "skill_name" in item
+        assert "category" in item
+        assert "is_emerging" in item
+        assert "total_employees" in item
+        assert "proficiency_distribution" in item
+        assert "avg_proficiency" in item
+        assert "certified_count" in item
+        assert "business_units" in item
+        
+        # Verify proficiency_distribution
+        prof_dist = item["proficiency_distribution"]
+        assert isinstance(prof_dist, dict)
+        for level in ["1", "2", "3", "4", "5"]:
+            assert level in prof_dist
+            assert isinstance(prof_dist[level], int)
+            assert prof_dist[level] >= 0
+        
+        # Verify distribution sums to total_employees
+        dist_sum = sum(prof_dist.values())
+        assert dist_sum == item["total_employees"]
+        
+        # Verify business_units structure
+        assert isinstance(item["business_units"], list)
+        if item["business_units"]:
+            bu = item["business_units"][0]
+            assert "business_unit_id" in bu
+            assert "business_unit_name" in bu
+            assert "employee_count" in bu
+            assert "avg_proficiency" in bu
+            assert isinstance(bu["employee_count"], int)
+            assert isinstance(bu["avg_proficiency"], float)
+            assert 0.0 <= bu["avg_proficiency"] <= 5.0
+
+
+def test_skill_heatmap_invalid_min_importance(client: TestClient) -> None:
+    """Test skill heatmap with invalid min_importance (error case)."""
+    # Arrange: Use min_importance=10 (out of range 1-5)
+    
+    # Act
+    response = client.get("/analytics/skill-heatmap?min_importance=10")
+    
+    # Assert
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+
+
+def test_skill_heatmap_with_all_filters(client: TestClient) -> None:
+    """Test skill heatmap with all filters applied (edge case)."""
+    # Arrange: Use business_unit_id=1, skill_category=TECHNICAL, min_importance=3
+    business_unit_id = 1
+    skill_category = "TECHNICAL"
+    min_importance = 3
+    
+    # Act
+    response = client.get(
+        f"/analytics/skill-heatmap?business_unit_id={business_unit_id}"
+        f"&skill_category={skill_category}&min_importance={min_importance}"
+    )
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify filters are reflected in response
+    filters = data["filters"]
+    assert filters["business_unit_id"] == business_unit_id
+    assert filters["skill_category"] == skill_category
+    assert filters["min_importance"] == min_importance
+    
+    # Verify results match filter criteria
+    for item in data["heatmap_data"]:
+        # All skills should be TECHNICAL
+        assert item["category"] == skill_category
+        
+        # All business_units in breakdown should match the filter
+        for bu in item["business_units"]:
+            assert bu["business_unit_id"] == business_unit_id
+
+# Made with Bob
