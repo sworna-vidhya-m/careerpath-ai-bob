@@ -71,7 +71,7 @@ Use get_skill_gap to analyze skill gaps for employee ID 1
 
 ### 2. get_industry_trends
 
-Gets industry skill trends for a business unit, optionally filtered by 
+Gets industry skill trends for a business unit, optionally filtered by
 trend direction.
 
 **Input:**
@@ -85,13 +85,92 @@ trend direction.
 
 **Parameters:**
 - `business_unit_id` (required): The ID of the business unit
-- `trend_filter` (optional): Filter by trend direction - "RISING", "STABLE", 
+- `trend_filter` (optional): Filter by trend direction - "RISING", "STABLE",
   or "DECLINING"
 - `limit` (optional): Maximum number of results (default: 20)
 
 **Example Usage in Bob:**
 ```
 Use get_industry_trends to get rising skill trends for business unit 1
+```
+
+### 3. get_skill_heatmap
+
+Gets organization-wide skill heatmap with proficiency distribution,
+optionally filtered by business unit, skill category, or minimum importance.
+
+**Input:**
+```json
+{
+  "business_unit_id": 1,
+  "skill_category": "TECHNICAL",
+  "min_importance": 3
+}
+```
+
+**Parameters:**
+- `business_unit_id` (optional): Filter by business unit ID
+- `skill_category` (optional): Filter by skill category - "TECHNICAL",
+  "DOMAIN", or "SOFT"
+- `min_importance` (optional): Filter by minimum importance level (1-5)
+
+**Example Usage in Bob:**
+```
+Use get_skill_heatmap to get technical skills with importance >= 3
+```
+
+### 4. get_career_recommendations
+
+Gets personalized career path recommendations for an employee with match
+scores and skill gaps.
+
+**Input:**
+```json
+{
+  "employee_id": 1,
+  "include_cross_bu": false,
+  "max_recommendations": 5
+}
+```
+
+**Parameters:**
+- `employee_id` (required): The ID of the employee
+- `include_cross_bu` (optional): Include cross-business-unit paths
+  (default: false)
+- `max_recommendations` (optional): Maximum number of recommendations
+  (default: 5)
+
+**Example Usage in Bob:**
+```
+Use get_career_recommendations to get career paths for employee ID 1
+```
+
+### 5. trigger_bench_learning
+
+Auto-enrolls bench employees in learning resources targeting their career
+path skill gaps. Use dry_run=true to preview without writing to DB.
+
+**Input:**
+```json
+{
+  "business_unit_id": 1,
+  "skill_ids": [1, 2, 3],
+  "max_enrollments_per_employee": 3,
+  "dry_run": true
+}
+```
+
+**Parameters:**
+- `business_unit_id` (optional): Filter by business unit ID
+- `skill_ids` (optional): Filter by specific skill IDs (array of integers)
+- `max_enrollments_per_employee` (optional): Max enrollments per employee
+  (1-10, default: 3)
+- `dry_run` (optional): Preview without writing to DB (default: false)
+
+**Example Usage in Bob:**
+```
+Use trigger_bench_learning with dry_run=true to preview bench learning
+enrollments for business unit 1
 ```
 
 ## Testing

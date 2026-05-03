@@ -63,6 +63,97 @@ async def list_tools() -> list[Tool]:
                 "required": ["business_unit_id"],
             },
         ),
+        Tool(
+            name="get_skill_heatmap",
+            description=(
+                "Get organization-wide skill heatmap with proficiency "
+                "distribution, optionally filtered by business unit, skill "
+                "category, or minimum importance"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "business_unit_id": {
+                        "type": "integer",
+                        "description": "Filter by business unit ID",
+                    },
+                    "skill_category": {
+                        "type": "string",
+                        "enum": ["TECHNICAL", "DOMAIN", "SOFT"],
+                        "description": "Filter by skill category",
+                    },
+                    "min_importance": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "description": "Filter by minimum importance level",
+                    },
+                },
+                "required": [],
+            },
+        ),
+        Tool(
+            name="get_career_recommendations",
+            description=(
+                "Get personalized career path recommendations for an "
+                "employee with match scores and skill gaps"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "employee_id": {
+                        "type": "integer",
+                        "description": "The ID of the employee",
+                    },
+                    "include_cross_bu": {
+                        "type": "boolean",
+                        "description": "Include cross-business-unit paths",
+                        "default": False,
+                    },
+                    "max_recommendations": {
+                        "type": "integer",
+                        "description": "Maximum number of recommendations",
+                        "default": 5,
+                    },
+                },
+                "required": ["employee_id"],
+            },
+        ),
+        Tool(
+            name="trigger_bench_learning",
+            description=(
+                "Auto-enroll bench employees in learning resources "
+                "targeting their career path skill gaps. Use dry_run=true "
+                "to preview without writing to DB."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "business_unit_id": {
+                        "type": "integer",
+                        "description": "Filter by business unit ID",
+                    },
+                    "skill_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "Filter by specific skill IDs",
+                    },
+                    "max_enrollments_per_employee": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10,
+                        "description": "Max enrollments per employee",
+                        "default": 3,
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "Preview without writing to DB",
+                        "default": False,
+                    },
+                },
+                "required": [],
+            },
+        ),
     ]
 
 
@@ -73,6 +164,12 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         return await handle_get_skill_gap(arguments)
     elif name == "get_industry_trends":
         return await handle_get_industry_trends(arguments)
+    elif name == "get_skill_heatmap":
+        return await handle_get_skill_heatmap(arguments)
+    elif name == "get_career_recommendations":
+        return await handle_get_career_recommendations(arguments)
+    elif name == "trigger_bench_learning":
+        return await handle_trigger_bench_learning(arguments)
     else:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -137,6 +234,127 @@ async def handle_get_industry_trends(arguments: dict) -> list[TextContent]:
                     TextContent(
                         type="text",
                         text=f"Error: {error_data.get('detail', 'Not found')}",
+                    )
+                ]
+            raise
+
+
+async def handle_get_skill_heatmap(arguments: dict) -> list[TextContent]:
+    """Handle get_skill_heatmap tool call."""
+    url = f"{API_BASE_URL}/analytics/skill-heatmap"
+
+    # Build query parameters
+    params = {}
+    if "business_unit_id" in arguments:
+        params["business_unit_id"] = arguments["business_unit_id"]
+    if "skill_category" in arguments:
+        params["skill_category"] = arguments["skill_category"]
+    if "min_importance" in arguments:
+        params["min_importance"] = arguments["min_importance"]
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            return [
+                TextContent(
+                    type="text",
+                    text=str(data),
+                )
+            ]
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                error_data = e.response.json()
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Error: {error_data.get('detail', 'Not found')}",
+                    )
+                ]
+            raise
+
+
+async def handle_get_career_recommendations(
+    arguments: dict
+) -> list[TextContent]:
+    """Handle get_career_recommendations tool call."""
+    employee_id = arguments["employee_id"]
+    url = f"{API_BASE_URL}/analytics/career-recommendations/{employee_id}"
+
+    # Build query parameters
+    params = {}
+    if "include_cross_bu" in arguments:
+        params["include_cross_bu"] = arguments["include_cross_bu"]
+    else:
+        params["include_cross_bu"] = False
+    if "max_recommendations" in arguments:
+        params["max_recommendations"] = arguments["max_recommendations"]
+    else:
+        params["max_recommendations"] = 5
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            return [
+                TextContent(
+                    type="text",
+                    text=str(data),
+                )
+            ]
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                error_data = e.response.json()
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Error: {error_data.get('detail', 'Not found')}",
+                    )
+                ]
+            raise
+
+
+async def handle_trigger_bench_learning(arguments: dict) -> list[TextContent]:
+    """Handle trigger_bench_learning tool call."""
+    url = f"{API_BASE_URL}/analytics/trigger-bench-learning"
+
+    # Build request body
+    body = {}
+    if "business_unit_id" in arguments:
+        body["business_unit_id"] = arguments["business_unit_id"]
+    if "skill_ids" in arguments:
+        body["skill_ids"] = arguments["skill_ids"]
+    if "max_enrollments_per_employee" in arguments:
+        body["max_enrollments_per_employee"] = arguments[
+            "max_enrollments_per_employee"
+        ]
+    else:
+        body["max_enrollments_per_employee"] = 3
+    if "dry_run" in arguments:
+        body["dry_run"] = arguments["dry_run"]
+    else:
+        body["dry_run"] = False
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, json=body)
+            response.raise_for_status()
+            data = response.json()
+            return [
+                TextContent(
+                    type="text",
+                    text=str(data),
+                )
+            ]
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in (404, 422):
+                error_data = e.response.json()
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Error: {error_data.get('detail', 'Error')}",
                     )
                 ]
             raise
