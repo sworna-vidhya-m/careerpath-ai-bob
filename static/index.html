@@ -580,6 +580,7 @@ textarea.form-control{height:80px;padding:10px 12px;resize:vertical}
         <div class="tbl-loading">Loading skill matrix…</div>
       </div>
     </div>
+    <div id="sm-pagination" class="pagination-bar" style="display:none"></div>
   </section>
 
 </main>
@@ -848,7 +849,7 @@ const cache = {
   assignments: null,
 };
 
-const pages = { employees:1, projects:1, careerPaths:1, learning:1 };
+const pages = { employees:1, projects:1, careerPaths:1, learning:1, skillMatrix:1 };
 const filters = { empBu:'', empStatus:'', projStatus:'', cpBu:'', lrSkill:'', lrType:'' };
 
 // Tracks which record is being edited (null = create)
@@ -1732,14 +1733,47 @@ async function renderSkillMatrix() {
         'No skills found',
         'Try adjusting your filters or add employee skills.'
       );
+      document.getElementById('sm-pagination').style.display = 'none';
       return;
     }
     
-    // Render heatmap table
-    let rows = data.heatmap_data.map(item => {
-      // Format proficiency distribution as inline text
+    // Apply pagination
+    const page = pages.skillMatrix || 1;
+    const allSkills = data.heatmap_data;
+    const slice = pageSlice(allSkills, page);
+    
+    // Render heatmap table with visual cells
+    let rows = slice.map(item => {
+      // Create visual heatmap cells for proficiency distribution
       const dist = item.proficiency_distribution;
-      const distText = `1:${dist['1']} 2:${dist['2']} 3:${dist['3']} 4:${dist['4']} 5:${dist['5']}`;
+      const maxCount = Math.max(dist['1'], dist['2'], dist['3'], dist['4'], dist['5']);
+      
+      let heatmapCells = '';
+      for (let level = 1; level <= 5; level++) {
+        const count = dist[level.toString()];
+        const intensity = maxCount > 0 ? count / maxCount : 0;
+        // Color scale: light gray for 0, darker shades for higher counts
+        const bgColor = count === 0
+          ? '#e0e0e0'
+          : `rgba(59, 130, 246, ${0.3 + intensity * 0.7})`; // Blue scale
+        
+        heatmapCells += `<span style="display:inline-block;width:24px;height:24px;
+          background:${bgColor};border:1px solid #ccc;text-align:center;
+          line-height:24px;font-size:11px;margin-right:2px;border-radius:2px"
+          title="Level ${level}: ${count} employees">${count}</span>`;
+      }
+      
+      // Create mini progress bar for average proficiency
+      const avgProf = item.avg_proficiency;
+      const percentage = (avgProf / 5.0) * 100;
+      // Color: green for high (>4), yellow for medium (3-4), red for low (<3)
+      const barColor = avgProf >= 4 ? '#10b981' : avgProf >= 3 ? '#f59e0b' : '#ef4444';
+      const profBar = `<div style="display:flex;align-items:center;gap:6px">
+        <span style="min-width:24px">${avgProf.toFixed(1)}</span>
+        <div style="width:60px;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden">
+          <div style="width:${percentage}%;height:100%;background:${barColor}"></div>
+        </div>
+      </div>`;
       
       // Format business units
       const buList = item.business_units.length > 0
@@ -1753,10 +1787,8 @@ async function renderSkillMatrix() {
           <td><strong>${esc(item.skill_name)}</strong></td>
           <td class="col-muted">${pill(item.category)}</td>
           <td class="col-num">${item.total_employees}</td>
-          <td class="col-num">${item.avg_proficiency.toFixed(1)}</td>
-          <td class="col-muted" style="font-family:var(--font-mono);font-size:12px">
-            ${distText}
-          </td>
+          <td class="col-num">${profBar}</td>
+          <td style="white-space:nowrap">${heatmapCells}</td>
           <td class="col-num">${item.certified_count}</td>
           <td class="col-muted" style="font-size:12px;max-width:300px">
             ${buList}
@@ -1780,16 +1812,19 @@ async function renderSkillMatrix() {
           </thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>
-      <div style="padding:12px 16px;border-top:1px solid var(--border);
-                  background:var(--surface-alt);font-size:13px;color:var(--text-secondary)">
-        <strong>${data.total_skills}</strong> skills ·
-        <strong>${data.total_employees_analyzed}</strong> employees analyzed
       </div>`;
+    
+    // Render pagination
+    renderPagination('sm-pagination', null, allSkills.length, page, p => {
+      pages.skillMatrix = p;
+      renderSkillMatrix();
+    });
+    document.getElementById('sm-pagination').style.display = 'flex';
     
   } catch(e) {
     content.innerHTML = `<div class="tbl-loading" style="color:var(--danger)">
       ${esc(e.message)}</div>`;
+    document.getElementById('sm-pagination').style.display = 'none';
     showToast('Failed to render skill matrix: ' + e.message, 'error');
   }
 }
@@ -1905,8 +1940,14 @@ document.getElementById('lrf-skill').addEventListener('change', e=>{ filters.lrS
 document.getElementById('lrf-type').addEventListener('change', e=>{ filters.lrType=e.target.value; pages.learning=1; renderResources(); });
 
 // Filter: skill matrix
-document.getElementById('smf-bu').addEventListener('change', renderSkillMatrix);
-document.getElementById('smf-category').addEventListener('change', renderSkillMatrix);
+document.getElementById('smf-bu').addEventListener('change', () => {
+  pages.skillMatrix = 1;
+  renderSkillMatrix();
+});
+document.getElementById('smf-category').addEventListener('change', () => {
+  pages.skillMatrix = 1;
+  renderSkillMatrix();
+});
 
 // ============================================================
 // 8. BOOTSTRAP — load active tab on page ready
