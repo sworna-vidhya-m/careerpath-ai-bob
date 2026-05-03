@@ -107,3 +107,19 @@ mcp/careerpath-mcp/.venv-mcp/bin/python -m pytest mcp/careerpath-mcp/test_server
 The server makes HTTP calls to the FastAPI application's analytics endpoints. 
 It does not import any code from the main application - all communication 
 happens via HTTP.
+## Bob IDE registration (one-time setup)
+
+This repo includes `.bob/mcp.example.json` as a template. To register
+this MCP server with Bob IDE on your machine:
+
+1. Copy the example to a real config file:
+```bash
+   cp .bob/mcp.example.json .bob/mcp.json
+```
+
+2. Edit `.bob/mcp.json` and replace `/ABSOLUTE/PATH/TO/REPO` with the
+   absolute path to your local clone of this repo.
+
+3. Reload Bob IDE: `Cmd+Shift+P` → Developer: Reload Window
+
+The `.bob/mcp.json` file is gitignored (it contains machine-specific paths).

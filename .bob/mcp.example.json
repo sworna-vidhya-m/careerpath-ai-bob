@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "careerpath-mcp": {
+      "command": "/ABSOLUTE/PATH/TO/REPO/mcp/careerpath-mcp/.venv-mcp/bin/python",
+      "args": ["-m", "careerpath_mcp"],
+      "cwd": "/ABSOLUTE/PATH/TO/REPO",
+      "timeout": 120,
+      "alwaysAllow": []
+    }
+  }
+}
