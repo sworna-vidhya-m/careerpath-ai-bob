@@ -14,3 +14,6 @@ mcp/careerpath-mcp/.venv-mcp/
 mcp/careerpath-mcp/careerpath_mcp.egg-info/
 mcp/careerpath-mcp/__pycache__/
 mcp/careerpath-mcp/**/__pycache__/
+
+# Local Bob MCP config (machine-specific paths; copy mcp.example.json and edit)
+.bob/mcp.json
