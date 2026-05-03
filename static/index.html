@@ -428,6 +428,86 @@ textarea.form-control{height:80px;padding:10px 12px;resize:vertical}
 
 /* FOCUS RING */
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+/* ============================================================
+   CAREER RECOMMENDATIONS MODAL
+   ============================================================ */
+.modal-wide{max-width:720px}
+.cr-header{
+  background:var(--surface-alt);padding:16px 20px;
+  border-radius:var(--radius-sm);margin-bottom:20px;
+  border:1px solid var(--border);
+}
+.cr-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cr-emp-name{font-size:16px;font-weight:700;color:var(--text-primary)}
+.cr-emp-meta{font-size:13px;color:var(--text-secondary)}
+.cr-emp-meta strong{color:var(--text-primary);font-weight:600}
+.cr-cards{display:flex;flex-direction:column;gap:14px}
+.cr-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.cr-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow)}
+.cr-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.cr-role-info{flex:1}
+.cr-target-role{font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+.cr-target-band{font-size:13px;color:var(--text-secondary)}
+.cr-readiness{
+  padding:4px 10px;border-radius:4px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+}
+.cr-readiness.high{background:#e6f4ea;color:#1a6b36}
+.cr-readiness.medium{background:#fff7ed;color:#c2410c}
+.cr-readiness.low{background:#fef2f2;color:#991b1b}
+.cr-match-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.cr-match-label{font-size:12px;color:var(--text-secondary);min-width:80px}
+.cr-progress-bar{
+  flex:1;height:8px;background:var(--surface-alt);
+  border-radius:4px;overflow:hidden;border:1px solid var(--border);
+}
+.cr-progress-fill{height:100%;transition:width .3s ease}
+.cr-progress-fill.high{background:linear-gradient(90deg,#22c55e,#16a34a)}
+.cr-progress-fill.medium{background:linear-gradient(90deg,#f59e0b,#d97706)}
+.cr-progress-fill.low{background:linear-gradient(90deg,#ef4444,#dc2626)}
+.cr-match-score{font-size:12px;font-weight:700;color:var(--text-primary);min-width:40px;text-align:right}
+.cr-skills-matched{font-size:12px;color:var(--text-muted);margin-bottom:8px}
+.cr-missing-toggle{
+  background:none;border:none;padding:6px 0;
+  font-size:12px;color:var(--primary);font-weight:600;
+  display:flex;align-items:center;gap:6px;
+  cursor:pointer;transition:color .15s;
+}
+.cr-missing-toggle:hover{color:var(--primary-hover)}
+.cr-missing-toggle-icon{font-size:10px;transition:transform .2s}
+.cr-missing-toggle.open .cr-missing-toggle-icon{transform:rotate(90deg)}
+.cr-missing-list{
+  display:none;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.cr-missing-list.open{display:block}
+.cr-missing-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;font-size:12px;
+}
+.cr-missing-skill{color:var(--text-primary);font-weight:500}
+.cr-missing-prof{color:var(--text-muted)}
+.cr-missing-prof strong{color:var(--text-secondary)}
+.cr-empty{
+  text-align:center;padding:48px 24px;
+  color:var(--text-secondary);
+}
+.cr-empty-icon{font-size:48px;margin-bottom:12px;opacity:.3}
+.cr-empty h3{font-size:15px;font-weight:600;margin-bottom:6px}
+.cr-empty p{font-size:13px;color:var(--text-muted)}
+.cr-loading{text-align:center;padding:48px 24px;color:var(--text-muted)}
+.cr-error{
+  text-align:center;padding:32px 24px;
+  background:#fef2f2;border:1px solid #fecaca;
+  border-radius:var(--radius-sm);color:#991b1b;
+}
+.cr-error-icon{font-size:32px;margin-bottom:8px}
+.cr-error-msg{font-size:14px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -802,6 +882,21 @@ textarea.form-control{height:80px;padding:10px 12px;resize:vertical}
 </div>
 
 <!-- ================================================================
+     MODAL: Career Recommendations
+     ================================================================ -->
+<div class="modal-overlay" id="modal-career-recs" role="dialog" aria-modal="true" aria-labelledby="modal-cr-title">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-cr-title">Career Recommendations</span>
+      <button class="modal-close" data-close="modal-career-recs" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="cr-modal-body">
+      <div class="cr-loading">Loading recommendations…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
      CONFIRM DIALOG
      ================================================================ -->
 <div class="confirm-overlay" id="confirm-overlay" role="alertdialog" aria-modal="true">
@@ -1107,6 +1202,7 @@ function renderEmployees() {
       <td>${fmtDate(e.hire_date)}</td>
       <td>${pill(e.current_status)}</td>
       <td class="col-actions">
+        <button class="btn btn-ghost" data-career-recs="${e.id}" aria-label="Career Recommendations for ${esc(e.name)}" title="Career Recommendations">🎯</button>
         <button class="btn btn-ghost" data-edit-emp="${e.id}" aria-label="Edit ${esc(e.name)}">✎</button>
         <button class="btn btn-ghost-danger" data-del-emp="${e.id}" data-del-name="${esc(e.name)}" aria-label="Delete ${esc(e.name)}">✕</button>
       </td>
@@ -1129,6 +1225,9 @@ function renderEmployees() {
   });
   wrap.querySelectorAll('[data-del-emp]').forEach(btn => {
     btn.onclick = () => deleteEmployee(parseInt(btn.dataset.delEmp), btn.dataset.delName);
+  });
+  wrap.querySelectorAll('[data-career-recs]').forEach(btn => {
+    btn.onclick = () => openCareerRecommendations(parseInt(btn.dataset.careerRecs));
   });
 }
 
@@ -1827,6 +1926,139 @@ async function renderSkillMatrix() {
     document.getElementById('sm-pagination').style.display = 'none';
     showToast('Failed to render skill matrix: ' + e.message, 'error');
   }
+}
+
+// ============================================================
+// 5f. CAREER RECOMMENDATIONS
+// ============================================================
+
+async function openCareerRecommendations(employeeId) {
+  modalTrigger = document.activeElement;
+  const modal = document.getElementById('modal-career-recs');
+  const body = document.getElementById('cr-modal-body');
+  
+  // Show loading state
+  body.innerHTML = '<div class="cr-loading">Loading recommendations…</div>';
+  openModal('modal-career-recs');
+  
+  try {
+    // Fetch employee data and recommendations
+    const employee = cache.employees.find(e => e.id === employeeId);
+    if (!employee) throw new Error('Employee not found');
+    
+    const buMap = Object.fromEntries((cache.bus||[]).map(b=>[b.id,b.name]));
+    const response = await apiGet(`/analytics/career-recommendations/${employeeId}?include_cross_bu=true&max_recommendations=5`);
+    
+    // Render the recommendations
+    renderCareerRecommendations(employee, buMap, response);
+  } catch(e) {
+    body.innerHTML = `
+      <div class="cr-error">
+        <div class="cr-error-icon">⚠️</div>
+        <div class="cr-error-msg">
+          Failed to load career recommendations: ${esc(e.message)}
+        </div>
+      </div>`;
+  }
+}
+
+function renderCareerRecommendations(employee, buMap, data) {
+  const body = document.getElementById('cr-modal-body');
+  const recommendations = data.recommendations || [];
+  
+  // Build header with employee info
+  let html = `
+    <div class="cr-header">
+      <div class="cr-header-row">
+        <div class="cr-emp-name">${esc(employee.name)}</div>
+      </div>
+      <div class="cr-emp-meta">
+        <strong>Current Role:</strong> ${esc(employee.role)} ·
+        <strong>Band:</strong> ${esc(employee.band)} ·
+        <strong>Business Unit:</strong> ${esc(buMap[employee.business_unit_id] || '—')}
+      </div>
+    </div>`;
+  
+  // Handle empty state
+  if (recommendations.length === 0) {
+    html += `
+      <div class="cr-empty">
+        <div class="cr-empty-icon">🎯</div>
+        <h3>No Career Recommendations Available</h3>
+        <p>This employee may not have a defined career path or sufficient skill data for recommendations.</p>
+      </div>`;
+    body.innerHTML = html;
+    return;
+  }
+  
+  // Render recommendation cards
+  html += '<div class="cr-cards">';
+  recommendations.forEach((rec, idx) => {
+    const readinessClass = rec.readiness.toLowerCase();
+    const matchPercent = Math.round(rec.match_score * 100);
+    let progressClass = 'low';
+    if (matchPercent >= 70) progressClass = 'high';
+    else if (matchPercent >= 30) progressClass = 'medium';
+    
+    const targetBand = rec.to_band || '—';
+    const skillsMatched = rec.possessed_skills || 0;
+    const totalSkills = rec.required_skills || 0;
+    const missingSkills = rec.missing_skills || [];
+    
+    html += `
+      <div class="cr-card">
+        <div class="cr-card-header">
+          <div class="cr-role-info">
+            <div class="cr-target-role">${esc(rec.to_role)}</div>
+            <div class="cr-target-band">Target Band: ${esc(targetBand)}</div>
+          </div>
+          <div class="cr-readiness ${readinessClass}">${esc(rec.readiness)}</div>
+        </div>
+        
+        <div class="cr-match-row">
+          <span class="cr-match-label">Match Score</span>
+          <div class="cr-progress-bar">
+            <div class="cr-progress-fill ${progressClass}" style="width:${matchPercent}%"></div>
+          </div>
+          <span class="cr-match-score">${matchPercent}%</span>
+        </div>
+        
+        <div class="cr-skills-matched">
+          ${skillsMatched} of ${totalSkills} skills matched
+        </div>
+        
+        ${missingSkills.length > 0 ? `
+          <button class="cr-missing-toggle" data-toggle-idx="${idx}">
+            <span class="cr-missing-toggle-icon">▶</span>
+            <span>View ${missingSkills.length} missing skill${missingSkills.length !== 1 ? 's' : ''}</span>
+          </button>
+          <div class="cr-missing-list" data-list-idx="${idx}">
+            ${missingSkills.map(skill => `
+              <div class="cr-missing-item">
+                <span class="cr-missing-skill">${esc(skill.skill_name)}</span>
+                <span class="cr-missing-prof">
+                  Current: <strong>${skill.current_proficiency || 0}</strong> →
+                  Required: <strong>${skill.required_proficiency}</strong>
+                </span>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>`;
+  });
+  html += '</div>';
+  
+  body.innerHTML = html;
+  
+  // Add toggle handlers for missing skills
+  body.querySelectorAll('.cr-missing-toggle').forEach(btn => {
+    btn.onclick = () => {
+      const idx = btn.dataset.toggleIdx;
+      const list = body.querySelector(`[data-list-idx="${idx}"]`);
+      btn.classList.toggle('open');
+      list.classList.toggle('open');
+    };
+  });
 }
 
 // ============================================================
