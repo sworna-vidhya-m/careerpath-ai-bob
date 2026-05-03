@@ -16,6 +16,21 @@ pytest -v
 pytest tests/test_smoke.py::test_health_endpoint -v
 ```
 
+## Local MCP Server
+
+A local MCP (Model Context Protocol) server lives at `mcp/careerpath-mcp/`.
+It exposes the analytics endpoints as tools that Bob can call directly:
+
+- `get_skill_gap(employee_id)` — wraps GET /analytics/skill-gap/{employee_id}
+- `get_industry_trends(business_unit_id, trend_filter?, limit?)` — wraps GET /analytics/industry-trends/{business_unit_id}
+
+The MCP server uses its own Python 3.13 venv at `mcp/careerpath-mcp/.venv-mcp/`,
+separate from the FastAPI app's Python 3.9 `.venv/`. They communicate over
+HTTP — the MCP server requires the FastAPI app to be running on localhost:8000.
+
+When implementing new analytics endpoints, also add corresponding MCP tools
+in `mcp/careerpath-mcp/careerpath_mcp/server.py`.
+
 ## Non-Obvious Patterns
 
 ### Database & Seeding
@@ -31,9 +46,11 @@ pytest tests/test_smoke.py::test_health_endpoint -v
 - Never raise HTTPException directly - use domain exceptions
 
 ### Analytics Router
-- `app/routers/analytics.py` is intentionally a stub - reserved for IBM Bob implementation
-- Only `/analytics/health` endpoint exists pre-hackathon
-- Five analytics endpoints are documented but not yet implemented
+- `app/routers/analytics.py` hosts five analytics endpoints (planned in PLAN.md)
+- Implemented: `/analytics/health`, `/analytics/skill-gap/{employee_id}`, `/analytics/industry-trends/{business_unit_id}`
+- Pending: `/analytics/skill-heatmap`, `/analytics/career-recommendations/{employee_id}`, `/analytics/trigger-bench-learning`
+- New endpoints follow the exception pattern from `app/exceptions.py` and add tests in `tests/test_analytics.py`
+- New endpoints should also be exposed as MCP tools (see "Local MCP Server" section)
 
 ### Code Style (from pyproject.toml)
 - Line length: 100 characters (Black & Ruff configured)
